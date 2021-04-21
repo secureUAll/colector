@@ -6,6 +6,9 @@ services:
     container_name: zookeeper
     ports:
       - "2181:2181"
+  colector:
+    image: colector
+    container_name: colector
   kafka:
     image: wurstmeister/kafka
     ports:
@@ -14,5 +17,15 @@ services:
       KAFKA_ADVERTISED_HOST_NAME: localhost
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_CREATE_TOPICS: "test-topic:5:2"
+      KAFKA_ADVERTISED_LISTENERS: 'SSL://kafka:9092'
+      KAFKA_LISTENERS: 'SSL://0.0.0.0:9092'
+      KAFKA_SSL_KEYSTORE_LOCATION: '/certs/kafka.server.keystore.jks'
+      KAFKA_SSL_KEYSTORE_PASSWORD: 'serverpassword'
+      KAFKA_SSL_KEY_PASSWORD: 'serverpassword'
+      KAFKA_SSL_TRUSTSTORE_LOCATION: '/certs/kafka.server.truststore.jks'
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: 'serverpassword'
+      # KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ''
+      KAFKA_SECURITY_INTER_BROKER_PROTOCOL: 'SSL'
     volumes:
+      - ./server_certs:/certs
       - /var/run/docker.sock:/var/run/docker.sock
