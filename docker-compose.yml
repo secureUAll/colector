@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      #KAFKA_HOST: 0.0.0.0
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_ADVERTISED_LISTENERS: SSL://kafka:9092,OUT://localhost:29092
+      KAFKA_LISTENERS: SSL://0.0.0.0:9092,OUT://0.0.0.0:29092
+      KAFKA_SSL_KEYSTORE_LOCATION: '/certs/kafka.server.keystore.jks'
+      KAFKA_SSL_KEYSTORE_PASSWORD: 'CouPHBm7SH4j'
+      KAFKA_SSL_KEY_PASSWORD: 'CouPHBm7SH4j'
+      KAFKA_SSL_TRUSTSTORE_LOCATION: '/certs/kafka.server.truststore.jks'
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: 'CouPHBm7SH4j'
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ''
+      KAFKA_SECURITY_INTER_BROKER_PROTOCOL: 'SSL'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SSL:SSL,OUT:SSL
+      KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.2
+      ZOOKEPER_SSL_CLIENT_ENABLE: 'true'
+      ZOOKEPER_SSL_KEYSTORE_LOCATION: '/certs/kafka.server.keystore.jks'
+      ZOOKEPER_SSL_KEYSTORE_PASSWORD: 'CouPHBm7SH4j'
+      ZOOKEPER_SSL_TRUSTSTORE_LOCATION: '/certs/kafka.server.truststore.jks'
+      ZOOKEPER_SSL_TRUSTSTORE_PASSWORD: 'CouPHBm7SH4j'
+    volumes:
+      - ./kafka_certs:/certs
+      - /var/run/docker.sock:/var/run/docker.sock
+  colector:
+    build: ./colector
+    container_name: colector
+    depends_on: 
+      - kafka
+    restart: always

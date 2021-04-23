@@ -1,0 +1,4 @@
+pymongo
+celery
+kafka-python
+pykafka
