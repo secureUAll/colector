@@ -1,10 +1,8 @@
 #!/bin/bash
 
-# Generate CA 
-openssl req -new -x509 -keyout ca-key -out ca-cert -days 365
 
 #Step 1
-keytool -keystore kafka.server.keystore.jks -alias localhost -validity 365 -genkey
+keytool -keystore kafka.server.keystore.jks -alias localhost -validity 365 -genkey -keyalg RSA
 #Step 2
 openssl req -new -x509 -keyout ca-key -out ca-cert -days 365
 keytool -keystore kafka.server.truststore.jks -alias CARoot -import -file ca-cert
