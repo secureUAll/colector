@@ -13,12 +13,12 @@ services:
     ports:
       - 29092:29092
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_HOST: localhost
       #KAFKA_HOST: 0.0.0.0
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_ADVERTISED_LISTENERS: SSL://kafka:9092,OUT://localhost:29092
-      KAFKA_LISTENERS: SSL://0.0.0.0:9092,OUT://0.0.0.0:29092
+      KAFKA_LISTENERS: SSL://kafka:9092,OUT://kafka:29092
       KAFKA_SSL_KEYSTORE_LOCATION: '/certs/kafka.server.keystore.jks'
       KAFKA_SSL_KEYSTORE_PASSWORD: 'CouPHBm7SH4j'
       KAFKA_SSL_KEY_PASSWORD: 'CouPHBm7SH4j'
