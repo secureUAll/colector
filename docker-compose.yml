@@ -6,6 +6,9 @@ services:
     container_name: zookeeper
     ports:
       - "2181:2181"
+    networks:
+      - some-net
+    
   kafka:
     image: wurstmeister/kafka
     container_name: kafka
@@ -36,9 +39,22 @@ services:
     volumes:
       - ./kafka_certs:/certs
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - some-net
+
   colector:
     build: ./colector
     container_name: colector
     depends_on: 
       - kafka
     restart: always
+
+    networks:
+      - some-net
+
+networks:
+  default:
+    external:
+      name: rede
+  some-net:
+    driver: bridge
