@@ -12,18 +12,24 @@ time.sleep(10)
 logging.warning("Colector started")
 
 producer = KafkaProducer(bootstrap_servers='kafka:9092',
-                          security_protocol='SSL',
+                          security_protocol='SASL_SSL',
                           ssl_cafile='./colector_certs/CARoot.pem',
                           ssl_certfile='./colector_certs/certificate.pem',
                           ssl_keyfile='./colector_certs/key.pem',
+                          sasl_mechanism='PLAIN',
+                          sasl_plain_username='colector',
+                          sasl_plain_password='colector',
                           ssl_check_hostname=False,
                           api_version=(2,7,0))
 
 consumer = KafkaConsumer('test',bootstrap_servers='kafka:9092',
-                          security_protocol='SSL',
+                          security_protocol='SASL_SSL',
                           ssl_cafile='./colector_certs/CARoot.pem',
                           ssl_certfile='./colector_certs/certificate.pem',
                           ssl_keyfile='./colector_certs/key.pem',
+                          sasl_mechanism='PLAIN',
+                          sasl_plain_username='colector',
+                          sasl_plain_password='colector',
                           ssl_check_hostname=False,
                           api_version=(2,7,0))
 
