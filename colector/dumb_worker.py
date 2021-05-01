@@ -1,10 +1,11 @@
 from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
-import logging
+import logging  
 import os 
 import json
 import time
+
 #logging.basicConfig(level=logging.DEBUG)
 time.sleep(30)
 colector_topics=['INIT','SCAN_REQUEST']
@@ -24,6 +25,7 @@ producer = KafkaProducer(bootstrap_servers='kafka:9092',
 
 #kafka consumer
 consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
+                          auto_offset_reset='earliest',
                           security_protocol='SASL_SSL',
                           ssl_cafile='./colector_certs/CARoot.pem',
                           ssl_certfile='./colector_certs/certificate.pem',
@@ -33,8 +35,14 @@ consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
                           sasl_plain_password='worker',
                           ssl_check_hostname=False,
                           api_version=(2,7,0),
-                          value_deserializer=lambda m: json.dumps(m).decode('latin'))
+                          value_deserializer=lambda m: json.loads(m.decode('latin')),
+                          fetch_max_wait_ms=0)
 consumer.subscribe(colector_topics)
+
+
+logging.warning("worker")
+logging.warning(consumer.subscription())
+
 
 #init message 
 random= os.urandom(16)
@@ -44,6 +52,5 @@ producer.send(colector_topics[0], key=random , value=message)
 producer.flush()
 
 for message in consumer:
-    print(message.topic)
-    print(message.key)
-    
+    logging.warning(message.topic)
+    logging.warning(message.value)

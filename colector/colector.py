@@ -7,7 +7,7 @@ import json
 
 #logging.basicConfig(level=logging.DEBUG)
 
-time.sleep(10)
+time.sleep(20)
 logging.warning("Colector started")
 #mongo_client = MongoClient("mongodb://localhost:27017/")
 #print(mongo_client)
@@ -20,18 +20,19 @@ def main():
     for msg in consumer:
         
         if msg.topic == colector_topics[0]:
-            logging.warning("Received a init message")
-
-            #guard configuration on BD and retrive id
-
-            #send id
-            producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':'1'})
+            if 'CONFIG' in msg.value:
+                #guard configuration on BD and retrive id
+                logging.warning("Received a init message")
+                logging.warning(msg.value)
+                #send id
+                producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':'1'})
+                producer.flush()
 
         elif msg.topic == colector_topics[1]:
             logging.warning("Received a scan request message")
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
-        time.sleep(3)
+
 
 if __name__ == "__main__":
 
@@ -53,6 +54,8 @@ if __name__ == "__main__":
 
     #kafka consumer
     consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
+                          auto_offset_reset='earliest',
+                          group_id='colector',
                           security_protocol='SASL_SSL',
                           ssl_cafile='./colector_certs/CARoot.pem',
                           ssl_certfile='./colector_certs/certificate.pem',
@@ -62,6 +65,7 @@ if __name__ == "__main__":
                           sasl_plain_password='colector',
                           ssl_check_hostname=False,
                           api_version=(2,7,0),
-                          value_deserializer=lambda m: json.dumps(m).encode('latin'))
+                          value_deserializer=lambda m: json.loads(m.decode('latin')),
+                          fetch_max_wait_ms=0)
     consumer.subscribe(colector_topics)
     main()
