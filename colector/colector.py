@@ -4,6 +4,7 @@ from kafka.errors import KafkaError
 import logging
 import time
 import json
+import psycopg2
 
 #logging.basicConfig(level=logging.DEBUG)
 
@@ -24,8 +25,23 @@ def main():
                 #guard configuration on BD and retrive id
                 logging.warning("Received a init message")
                 logging.warning(msg.value)
+
+                #sql query to insert worker
+                QUERY = '''INSERT INTO workers_worker(name,status,failures) VALUES(%s,%s,%s) RETURNING id'''
+
+                # create a new cursor
+                cur = conn.cursor()
+                # execute the INSERT statement
+                cur.execute(QUERY, ("worker","IDLE","0"))
+                # get the generated id back
+                worker_id = cur.fetchone()[0]
+                # commit the changes to the database
+                conn.commit()
+                # close communication with the database
+                cur.close()
                 #send id
-                producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':'1'})
+                
+                producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
                 producer.flush()
 
         elif msg.topic == colector_topics[1]:
@@ -68,4 +84,13 @@ if __name__ == "__main__":
                           value_deserializer=lambda m: json.loads(m.decode('latin')),
                           fetch_max_wait_ms=0)
     consumer.subscribe(colector_topics)
+
+    #postgres db
+    conn = psycopg2.connect(host="db",database="secureuall",user="frontend", password="abc")
+    logging.warning("connected to postgres")
+    logging.warning(conn)
     main()
+
+
+#https://www.postgresqltutorial.com/postgresql-python
+#docker exec -it docker_db_1 bash
