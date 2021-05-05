@@ -7,7 +7,7 @@ import json
 import time
 
 #logging.basicConfig(level=logging.DEBUG)
-time.sleep(30)
+time.sleep(22)
 colector_topics=['INIT','SCAN_REQUEST']
 
 #kafka producer
@@ -35,8 +35,7 @@ consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
                           sasl_plain_password='worker',
                           ssl_check_hostname=False,
                           api_version=(2,7,0),
-                          value_deserializer=lambda m: json.loads(m.decode('latin')),
-                          fetch_max_wait_ms=0)
+                          value_deserializer=lambda m: json.loads(m.decode('latin')))
 consumer.subscribe(colector_topics)
 
 
