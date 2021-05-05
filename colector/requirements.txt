@@ -1,4 +1,4 @@
 pymongo
 celery
 kafka-python
-pykafka
+psycopg2-binary

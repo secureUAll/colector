@@ -6,4 +6,6 @@ RUN pip3 install -r requirements.txt
 
 COPY . . 
 
-CMD ["python3", "colector.py"]
+RUN chmod a+x script.sh
+
+CMD ["./script.sh"]
