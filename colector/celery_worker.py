@@ -1,5 +1,6 @@
 from celery import Celery
 import logging
+from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres
 from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
@@ -19,12 +20,33 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    # Calls test('hello') every 10 seconds.
-    sender.add_periodic_task(10.0, testee(), name='add every 10')
+    sender.add_periodic_task(60, scan.s())
 
+#get the next machines to be scanned
 @app.task
-def testee():
-    logging.warning("hello")
+def scan():
+    conn= connect_postgres()
+    producer=connect_kafka_producer()
+
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\" FROM  machines_machine WHERE \"nextScan\" < NOW()'''
+    cur = conn.cursor()
+    cur.execute(QUERY)
+
+    machines= cur.fetchall()
+    for machine in machines:
+        QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+
+        cur = conn.cursor()
+        cur.execute(QUERY_WORKER, (machine[0],))
+
+        workers= cur.fetchall()
+        for worker in workers:
+            if machine[1] == 'null':
+                producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+            else: 
+                producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+    producer.flush()
+    conn.close()
 
 
 @app.task
@@ -34,36 +56,14 @@ def main():
     global conn
     
     #kafka producer
-    producer = KafkaProducer(bootstrap_servers='kafka:9092',
-                          security_protocol='SASL_SSL',
-                          ssl_cafile='./colector_certs/CARoot.pem',
-                          ssl_certfile='./colector_certs/certificate.pem',
-                          ssl_keyfile='./colector_certs/key.pem',
-                          sasl_mechanism='PLAIN',
-                          sasl_plain_username='colector',
-                          sasl_plain_password='colector',
-                          ssl_check_hostname=False,
-                          api_version=(2,7,0),
-                          value_serializer=lambda m: json.dumps(m).encode('latin'))
+    producer = connect_kafka_producer()
 
     #kafka consumer
-    consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
-                          auto_offset_reset='earliest',
-                          group_id='colector',
-                          security_protocol='SASL_SSL',
-                          ssl_cafile='./colector_certs/CARoot.pem',
-                          ssl_certfile='./colector_certs/certificate.pem',
-                          ssl_keyfile='./colector_certs/key.pem',
-                          sasl_mechanism='PLAIN',
-                          sasl_plain_username='colector',
-                          sasl_plain_password='colector',
-                          ssl_check_hostname=False,
-                          api_version=(2,7,0),
-                          value_deserializer=lambda m: json.loads(m.decode('latin')))
+    consumer = connect_kafka_consumer()
     consumer.subscribe(colector_topics)
 
     #postgres db
-    conn = psycopg2.connect(host="db",database="secureuall",user="frontend", password="abc")
+    conn = connect_postgres()
     logging.warning("connected to postgres")
     logging.warning(conn)
 
@@ -107,23 +107,22 @@ def initial_worker(msg):
     for machine in msg.value['CONFIG']['ADDRESS_LIST']:
         #See if machine exists
         QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
-        logging.warning(machine)
         cur.execute(QUERY, (machine,))
         
-        QUERY_WORKER_MACHINE = '''INSERT INTO machines_machine_workers VALUES(%s,%s)'''
+        QUERY_WORKER_MACHINE = '''INSERT INTO machines_machineworker(machine_id,worker_id) VALUES(%s,%s)'''
         #If not add to db
 
         machine_id = cur.fetchone()
         if machine_id is None:
-            QUERY = '''INSERT INTO machines_machine(ip, dns, os, risk, \"scanLevel\",location,periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id'''
+            QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
             if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
-                cur.execute(QUERY, (machine,'null','null', 'null','null','2','W','CURRENT_DATE'))
+                cur.execute(QUERY, (machine,'null','2','W','NOW()'))
             else:
-                cur.execute(QUERY, ('null', machine,'null', 'null','null','2','W','CURRENT_DATE'))
+                cur.execute(QUERY, ('null', machine,'2','W','NOW()'))
             machine_id= cur.fetchone()
             conn.commit()
 
-        cur.execute(QUERY_WORKER_MACHINE, (machine_id[0],worker_id,)) 
+        cur.execute(QUERY_WORKER_MACHINE, (machine_id[0],worker_id)) 
         conn.commit()
     conn.close()
 

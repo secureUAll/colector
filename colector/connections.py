@@ -1,56 +1,43 @@
-from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
-from kafka.errors import KafkaError
-import logging  
-import os 
 import json
-import time
+import psycopg2
 
-#logging.basicConfig(level=logging.DEBUG)
-time.sleep(22)
-colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
-
-#kafka producer
-producer = KafkaProducer(bootstrap_servers='kafka:9092',
+def connect_kafka_producer():
+    #kafka producer
+    producer = KafkaProducer(bootstrap_servers='kafka:9092',
                           security_protocol='SASL_SSL',
                           ssl_cafile='./colector_certs/CARoot.pem',
                           ssl_certfile='./colector_certs/certificate.pem',
                           ssl_keyfile='./colector_certs/key.pem',
                           sasl_mechanism='PLAIN',
-                          sasl_plain_username='worker',
-                          sasl_plain_password='worker',
+                          sasl_plain_username='colector',
+                          sasl_plain_password='colector',
                           ssl_check_hostname=False,
                           api_version=(2,7,0),
                           value_serializer=lambda m: json.dumps(m).encode('latin'))
+    
+    return producer
 
-#kafka consumer
-consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
+def connect_kafka_consumer():
+    #kafka consumer
+    consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
                           auto_offset_reset='earliest',
+                          group_id='colector',
                           security_protocol='SASL_SSL',
                           ssl_cafile='./colector_certs/CARoot.pem',
                           ssl_certfile='./colector_certs/certificate.pem',
                           ssl_keyfile='./colector_certs/key.pem',
                           sasl_mechanism='PLAIN',
-                          sasl_plain_username='worker',
-                          sasl_plain_password='worker',
+                          sasl_plain_username='colector',
+                          sasl_plain_password='colector',
                           ssl_check_hostname=False,
                           api_version=(2,7,0),
                           value_deserializer=lambda m: json.loads(m.decode('latin')))
-consumer.subscribe(colector_topics)
+    
+    return consumer
 
 
-logging.warning("worker")
-logging.warning(consumer.subscription())
+def connect_postgres():
+    conn=psycopg2.connect(host="db",database="secureuall",user="frontend", password="abc")
+    return conn
 
-
-#init message 
-random= os.urandom(16)
-message={'CONFIG':{'ADDRESS_LIST':['123.4.4.4','123.3.3.3','domain@ua.pt']}}
-
-producer.send(colector_topics[0], key=random , value=message)
-producer.flush()
-
-for message in consumer:
-    logging.warning("WORKER ")
-    logging.warning(message.topic)
-    logging.warning(message.value)
