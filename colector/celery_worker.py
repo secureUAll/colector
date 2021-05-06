@@ -9,6 +9,8 @@ import time
 import json
 import psycopg2
 import re
+import smtplib
+import ssl
 
 
 colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
@@ -28,15 +30,24 @@ def scan():
     conn= connect_postgres()
     producer=connect_kafka_producer()
 
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\" FROM  machines_machine WHERE \"nextScan\" < NOW()'''
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" < NOW()'''
     cur = conn.cursor()
     cur.execute(QUERY)
 
     machines= cur.fetchall()
     for machine in machines:
         QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+        
+        if machine[4] == 'D':
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+            
+        elif machine[4]=='M':
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+        else:
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+        cur.execute(QUERY_MACHINE, (machine[0],))
 
-        cur = conn.cursor()
+        conn.commit()
         cur.execute(QUERY_WORKER, (machine[0],))
 
         workers= cur.fetchall()
@@ -84,8 +95,7 @@ def main_loop():
             logging.warning("Received a message from frontend")
         elif msg.topic == colector_topics[3]:
             logging.warning("Received logs")
-            #TODO Store logs
-            #Send notification email
+            logs(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
 
@@ -129,3 +139,21 @@ def initial_worker(msg):
     #send id
     producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
     producer.flush()
+
+
+def logs(msg):
+    QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
+    #TODO store and process logs
+    #send notification email
+
+    
+
+"""
+mailserver = smtplib.SMTP('smtp.office365.com',587)
+mailserver.ehlo()
+mailserver.starttls()
+password=input("->")
+mailserver.login('margarida.martins@ua.pt', password)
+mailserver.sendmail('margarida.martins@ua.pt','margarida.martins@ua.pt','\npython email')
+mailserver.quit()
+"""
