@@ -45,7 +45,7 @@ logging.warning(consumer.subscription())
 
 #init message 
 random= os.urandom(16)
-message={'CONFIG':{'ADDRESS_LIST':['123.4.4.4','123.3.3.3']}}
+message={'CONFIG':{'ADDRESS_LIST':['123.4.4.4','123.3.3.3','domain@ua.pt']}}
 
 producer.send(colector_topics[0], key=random , value=message)
 producer.flush()
