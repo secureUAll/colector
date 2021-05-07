@@ -92,7 +92,8 @@ def main_loop():
                 initial_worker(msg)
             
         elif msg.topic == colector_topics[2]:
-            logging.warning("Received a message from frontend")
+            if msg.key==b'SCAN':
+                scan_machine(msg)
         elif msg.topic == colector_topics[3]:
             logging.warning("Received logs")
             logs(msg)
@@ -140,6 +141,36 @@ def initial_worker(msg):
     producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
     producer.flush()
 
+def scan_machine(msg):
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\"  FROM  machines_machine WHERE ip=%s OR dns=%s'''
+    
+    cur = conn.cursor()
+    cur.execute(QUERY,(msg.value['MACHINE'],msg.value['MACHINE']))
+
+    machine= cur.fetchone()
+
+    QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+        
+    if machine[4] == 'D':
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+            
+    elif machine[4]=='M':
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+    else:
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+    cur.execute(QUERY_MACHINE, (machine[0],))
+
+    conn.commit()
+    cur.execute(QUERY_WORKER, (machine[0],))
+
+    workers= cur.fetchall()
+    for worker in workers:
+        if machine[1] == 'null':
+            producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+        else: 
+            producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+    producer.flush()
+    conn.close()
 
 def logs(msg):
     QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
