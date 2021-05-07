@@ -134,7 +134,7 @@ def initial_worker(msg):
 
         cur.execute(QUERY_WORKER_MACHINE, (machine_id[0],worker_id)) 
         conn.commit()
-    conn.close()
+    cur.close()
 
     #send id
     producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
