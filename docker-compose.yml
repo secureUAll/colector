@@ -44,13 +44,22 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./kafka_config:/etc/kafka
 
-
   colector:
     build: ./colector
     container_name: colector
     depends_on: 
       - kafka
+      - rabbitmq  
     restart: always
+  
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq'
+    ports:
+      - 5672:5672
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
 
 
 networks:
