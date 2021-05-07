@@ -1,0 +1,12 @@
+xcoa.av.it.pt
+www.ieeta.pt
+deti-cmd.ua.pt
+aws.atnog.av.it.pt
+api.web.ua.pt
+deti-cismob.ua.pt
+srv1-deti.ua.pt
+srv2-deti.ua.pt
+srv3-deti.ua.pt
+srv4-deti.ua.pt
+srv5-deti.ua.pt
+linux3.det.ua.pt
