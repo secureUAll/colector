@@ -68,30 +68,50 @@ producer.send(colector_topics[0], key=random , value=message)
 producer.flush()
 
 for message in consumer:
-
-    logging.warning("WORKER ")
-    logging.warning(message.topic)
-    logging.warning(message.value)
-
+    
+    # initial message response to save WORKER_ID
     if message.topic == "INIT":
-        continue
         # Get ID
-        #print(message)
-        #if message.key == random:
-            #WORKER_ID = message.value['WORKER_ID']
+        if message.key == random and "WORKER_ID" in message.value:
+            print(message.value)
+            WORKER_ID = message.value['WORKER_ID']
 
     else:
         if message.key == WORKER_ID:
+            print(message.value)
+            # get machine to scan
             machine = message.value["MACHINE"]
+
+            # default scrapping value
             if message.value["SCRAP_LEVEL"] == 2:
-                continue
+                # pull image from registry
+                os.system("docker pull localhost/vulscan:latest")
+                # runn image
+                os.system("docker  run --user \"$(id -u):$(id -g)\" -v `pwd`:`pwd` -w `pwd` -i -t localhost/vulscan:latest -sV --script=vulscan/vulscan.nse " + machine + " -oX out.xml")
+
+                output_json = convert_to_json("out.xml")
+
             elif message.value["SCRAP_LEVEL"] == 3:
                 continue
             elif message.value["SCRAP_LEVEL"] == 4:
                 continue
             
-            producer.send(colector_topics[1], key=WORKER_ID, value=message)
+            print("vai mandar")
+            producer.send(colector_topics[1], key=WORKER_ID, value=output_json)
             producer.flush()
+    
+#logging.warning(message.topic)
+#logging.warning(message.value)
+
+def convert_to_json(output_file):
+
+    f = open(output_file)
+    xml_content = f.read()
+    f.close()
+
+    #write_file = open("out_json.json", "w")
+    #write_file.write(json.dumps(xmltodict.parse(xml_content), indent=4, sort_keys=True))
+    return json.dumps(xmltodict.parse(xml_content), indent=4, sort_keys=True)
     
 #logging.warning(message.topic)
 #logging.warning(message.value)
