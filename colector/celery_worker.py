@@ -104,7 +104,7 @@ def initial_worker(msg):
     logging.warning("Received a init message")
 
     #sql query to insert worker
-    QUERY = '''INSERT INTO workers_worker(name,status,failures,created) VALUES(%s,%s,%s) RETURNING id'''
+    QUERY = '''INSERT INTO workers_worker(name,status,failures,created) VALUES(%s,%s,%s,%s) RETURNING id'''
 
     # create a new cursor
     cur = conn.cursor()
