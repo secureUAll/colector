@@ -107,7 +107,7 @@ def initial_worker(msg):
 
     # create a new cursor
     cur = conn.cursor()
-    cur.execute(QUERY, ("worker","IDLE","0"))
+    cur.execute(QUERY, ("worker","I","0"))
 
     # get the generated id back
     worker_id = cur.fetchone()[0]
