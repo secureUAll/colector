@@ -1,6 +1,7 @@
 from celery import Celery
 import logging
 from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres
+from datetime import date
 from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
@@ -103,11 +104,11 @@ def initial_worker(msg):
     logging.warning("Received a init message")
 
     #sql query to insert worker
-    QUERY = '''INSERT INTO workers_worker(name,status,failures) VALUES(%s,%s,%s) RETURNING id'''
+    QUERY = '''INSERT INTO workers_worker(name,status,failures,created) VALUES(%s,%s,%s) RETURNING id'''
 
     # create a new cursor
     cur = conn.cursor()
-    cur.execute(QUERY, ("worker","I","0"))
+    cur.execute(QUERY, ("worker","I","0", str(date.today())))
 
     # get the generated id back
     worker_id = cur.fetchone()[0]
