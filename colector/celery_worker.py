@@ -22,7 +22,7 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(60, scan.s())
+    sender.add_periodic_task(6000, scan.s())
 
 #get the next machines to be scanned
 @app.task
@@ -104,11 +104,11 @@ def initial_worker(msg):
     logging.warning("Received a init message")
 
     #sql query to insert worker
-    QUERY = '''INSERT INTO workers_worker(name,status,failures) VALUES(%s,%s,%s) RETURNING id'''
+    QUERY = '''INSERT INTO workers_worker(name,status,failures,created) VALUES(%s,%s,%s,%s) RETURNING id'''
 
     # create a new cursor
     cur = conn.cursor()
-    cur.execute(QUERY, ("worker","IDLE","0"))
+    cur.execute(QUERY, ("worker","I","0","NOW()"))
 
     # get the generated id back
     worker_id = cur.fetchone()[0]
@@ -135,20 +135,21 @@ def initial_worker(msg):
 
         cur.execute(QUERY_WORKER_MACHINE, (machine_id[0],worker_id)) 
         conn.commit()
-    conn.close()
+    cur.close()
 
     #send id
     producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
     producer.flush()
 
 def scan_machine(msg):
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\"  FROM  machines_machine WHERE ip=%s OR dns=%s'''
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\",periodicity  FROM  machines_machine WHERE ip=%s OR dns=%s'''
     
     cur = conn.cursor()
     cur.execute(QUERY,(msg.value['MACHINE'],msg.value['MACHINE']))
 
-    machine= cur.fetchone()
 
+    machine= cur.fetchone()
+    logging.warning( machine  )
     QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
         
     if machine[4] == 'D':
