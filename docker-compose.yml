@@ -7,7 +7,9 @@ services:
     ports:
         - 5432:5432 # TODO! Remove on production!
     volumes:
-        - ./data/db:/var/lib/postgresql/data
+        - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+        #- ./data/db:/var/lib/postgresql/data
+        
     environment:
         - POSTGRES_DB=secureuall
         - POSTGRES_USER=frontend
@@ -62,6 +64,7 @@ services:
     depends_on: 
       - kafka
       - rabbitmq  
+      - db
     restart: always
   
   rabbitmq:

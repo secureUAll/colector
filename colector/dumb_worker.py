@@ -55,7 +55,7 @@ for message in consumer:
     if sent==0:
         sent=1
         # key=1=WORKER_ID
-        producer.send(colector_topics[3], key=1, value={ 'MACHINE': '0.0.0.0', 'RESULTS': ['dict1', 'dict2', 'dict3']})
+        producer.send(colector_topics[3], key=b'XYZ', value={ 'MACHINE': '0.0.0.0', 'RESULTS': ['dict1', 'dict2', 'dict3']})
     logging.warning("WORKER ")
     logging.warning(message.topic)
     logging.warning(message.value)
