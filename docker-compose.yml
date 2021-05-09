@@ -1,6 +1,18 @@
 version: '3'
 
 services:
+  db:
+    image: postgres
+    restart: always
+    ports:
+        - 5432:5432 # TODO! Remove on production!
+    volumes:
+        - ./data/db:/var/lib/postgresql/data
+    environment:
+        - POSTGRES_DB=secureuall
+        - POSTGRES_USER=frontend
+        - POSTGRES_PASSWORD=abc
+
   zookeeper:
     image: wurstmeister/zookeeper
     container_name: zookeeper

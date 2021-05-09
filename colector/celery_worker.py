@@ -5,6 +5,7 @@ from datetime import date
 from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
+from datetime import datetime, timezone
 import logging
 import time
 import json
@@ -18,8 +19,6 @@ colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
 
 app = Celery()
 app.config_from_object('celeryconfig')
-
-
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
@@ -95,7 +94,6 @@ def main_loop():
         elif msg.topic == colector_topics[2]:
             logging.warning("Received a message from frontend")
         elif msg.topic == colector_topics[3]:
-            logging.warning("Received logs")
             logs(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
@@ -143,9 +141,24 @@ def initial_worker(msg):
 
 
 def logs(msg):
-    QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
-    #TODO store and process logs
-    #send notification email
+    QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %d)'''
+    conn= connect_postgres()
+    cur = conn.cursor()
+
+    # parameters
+    dt = datetime.now(timezone.utc)
+    path="logs/"+str(round(time.time() * 1000))
+    worker_id=msg.key
+    machine_ip=msg.value["MACHINE"]
+    cur.execute(QUERY, (dt, path, machine_ip, worker_id))
+    conn.commit()
+    cur.close()
+
+    # guardar os logs num ficheiro
+    f=open(path, "wb")
+    f.write(json.dumps(msg.value["RESULTS"]))
+    
+
 
     
 

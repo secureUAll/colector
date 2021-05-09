@@ -8,4 +8,4 @@ COPY . .
 
 RUN chmod a+x script.sh
 
-CMD ["./script.sh"]
+CMD ["./script_test_logs.sh"]
