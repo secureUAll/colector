@@ -38,6 +38,7 @@ def scan():
     machines= cur.fetchall()
     for machine in machines:
         QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+        QUERY_WORKER_UPDATE = '''UPDATE workers_worker SET status=\'A\' WHERE id= %s'''
         
         if machine[4] == 'D':
             QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
@@ -53,6 +54,8 @@ def scan():
 
         workers= cur.fetchall()
         for worker in workers:
+            cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
+            conn.commit()
             if machine[1] == 'null':
                 producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
