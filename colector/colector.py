@@ -22,6 +22,10 @@ logging.warning("Colector started")
 
 if __name__ == "__main__":
     ready=celery_worker.main.delay()
+    #stay up
+    while True:
+        time.sleep(30)
+    logging.warning("Colector finished")
 
 
 

@@ -79,7 +79,7 @@ def main():
     logging.warning("connected to postgres")
     logging.warning(conn)
 
-    logging.warning(consumer.subscription())
+    producer.send(colector_topics[0],value={"init consumer":"sss"})
     main_loop()
 
 def main_loop():
@@ -99,6 +99,8 @@ def main_loop():
             logs(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
+    logging.warning("Closing connection" )
+    conn.close()
 
 def initial_worker(msg):
     logging.warning("Received a init message")
