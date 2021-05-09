@@ -31,7 +31,7 @@ def scan():
     conn= connect_postgres()
     producer=connect_kafka_producer()
 
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" < NOW()'''
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" <= NOW()'''
     cur = conn.cursor()
     cur.execute(QUERY)
 
@@ -54,6 +54,7 @@ def scan():
 
         workers= cur.fetchall()
         for worker in workers:
+            logging.warning(bytes([worker[0]]))
             cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
             conn.commit()
             if machine[1] == 'null':
