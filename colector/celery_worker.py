@@ -30,7 +30,7 @@ def scan():
     conn= connect_postgres()
     producer=connect_kafka_producer()
 
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" < NOW()'''
+    QUERY = '''SELECT id, ip, dns, scanLevel, periodicity  FROM  machines_machine WHERE nextScan < NOW()'''
     cur = conn.cursor()
     cur.execute(QUERY)
 
@@ -39,12 +39,12 @@ def scan():
         QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
         
         if machine[4] == 'D':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan = NOW() + interval \'1 day\'  WHERE id= %s'''
             
         elif machine[4]=='M':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan= NOW() + interval \'1 month\'  WHERE id= %s'''
         else:
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan = NOW() + interval \'7 days\'  WHERE id= %s'''
         cur.execute(QUERY_MACHINE, (machine[0],))
 
         conn.commit()
@@ -94,6 +94,7 @@ def main_loop():
         elif msg.topic == colector_topics[2]:
             logging.warning("Received a message from frontend")
         elif msg.topic == colector_topics[3]:
+            logging.warning(msg)
             logs(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
@@ -106,7 +107,7 @@ def initial_worker(msg):
 
     # create a new cursor
     cur = conn.cursor()
-    cur.execute(QUERY, ("worker","I","0", str(date.today())))
+    cur.execute(QUERY, ("XYZ","I","0", str(date.today())))
 
     # get the generated id back
     worker_id = cur.fetchone()[0]
@@ -123,7 +124,7 @@ def initial_worker(msg):
 
         machine_id = cur.fetchone()
         if machine_id is None:
-            QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
+            QUERY = '''INSERT INTO machines_machine(ip,dns, scanLevel,periodicity, nextScan) VALUES(%s,%s,%s,%s,%s) RETURNING id'''
             if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
                 cur.execute(QUERY, (machine,'null','2','W','NOW()'))
             else:
@@ -141,24 +142,30 @@ def initial_worker(msg):
 
 
 def logs(msg):
-    QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %d)'''
+    logging.warning("ENTROU NOS LOGS")
+    QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
     conn= connect_postgres()
     cur = conn.cursor()
 
     # parameters
     dt = datetime.now(timezone.utc)
     path="logs/"+str(round(time.time() * 1000))
-    worker_id=msg.key
+    worker_id=int.from_bytes(msg.key,"big")
     machine_ip=msg.value["MACHINE"]
+
+    # insert into log's table
     cur.execute(QUERY, (dt, path, machine_ip, worker_id))
     conn.commit()
     cur.close()
-
+    
     # guardar os logs num ficheiro
     f=open(path, "wb")
-    f.write(json.dumps(msg.value["RESULTS"]))
-    
+    f.write(json.dumps(msg.value["RESULTS"]).encode('latin'))
 
+    """logging.warning("ENTROU NOS LOGS, CONECTOU À BD, GUARDOU NA TABELA, GUARDOU NO PATH, AGORA VAMOS VER O QUE FICOU GUARDADO")
+    f=open(path, "rb")
+    txt=f.read()
+    print(txt)"""
 
     
 
