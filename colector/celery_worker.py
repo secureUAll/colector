@@ -94,11 +94,11 @@ def main_loop():
             if 'CONFIG' in msg.value:
                 #guard configuration on BD and retrive id
                 initial_worker(msg)
-            
         elif msg.topic == colector_topics[2]:
             logging.warning("Received a message from frontend")
         elif msg.topic == colector_topics[3]:
             logging.warning("Received logs")
+            print(msg.value)
             logs(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
