@@ -20,6 +20,8 @@ services:
     container_name: zookeeper
     ports:
       - "2181:2181"
+    logging:
+      driver: none 
 
 
   kafka:
@@ -57,6 +59,8 @@ services:
       - ./kafka_certs:/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - ./kafka_config:/etc/kafka
+    logging:
+      driver: none 
 
   colector:
     build: ./colector
@@ -75,6 +79,8 @@ services:
     volumes:
       - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    logging:
+      driver: none 
 
 
 networks:

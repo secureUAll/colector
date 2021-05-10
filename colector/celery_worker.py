@@ -22,7 +22,7 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(60, scan.s())
+    sender.add_periodic_task(10, scan.s())
 
 #get the next machines to be scanned
 @app.task
@@ -56,6 +56,8 @@ def scan():
                 producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
                 producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+    
+    producer.send(colector_topics[1],key=bytes(1), value={"MACHINE":'0.0.0.0',"SCRAP_LEVEL":2})
     producer.flush()
     conn.close()
 
@@ -85,12 +87,15 @@ def main_loop():
  
     logging.warning(consumer.subscription())
     for msg in consumer:
-        
+        logging.critical("COLECTOR LOG MENSAGEM")
+        #logging.critical("WORKER LOG")
+        #logging.critical(message.value)
         if msg.topic == colector_topics[0]:
             if 'CONFIG' in msg.value:
                 #guard configuration on BD and retrive id
                 initial_worker(msg)
-            
+        elif msg.topic == colector_topics[1]:
+            continue
         elif msg.topic == colector_topics[2]:
             logging.warning("Received a message from frontend")
         elif msg.topic == colector_topics[3]:
@@ -107,7 +112,7 @@ def initial_worker(msg):
 
     # create a new cursor
     cur = conn.cursor()
-    cur.execute(QUERY, ("XYZ","I","0", str(date.today())))
+    cur.execute(QUERY, ("worker","I","0", str(date.today())))
 
     # get the generated id back
     worker_id = cur.fetchone()[0]
