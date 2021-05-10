@@ -1,11 +1,28 @@
 version: '3'
 
 services:
+  
+  #db:
+    #image: postgres
+    # restart: always
+    # ports:
+    #     - 5432:5432 # TODO! Remove on production!
+    # volumes:
+    #     - ./init.sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    #     #- ./data/db:/var/lib/postgresql/data
+        
+    # environment:
+    #     - POSTGRES_DB=secureuall
+    #     - POSTGRES_USER=frontend
+    #     - POSTGRES_PASSWORD=abc
+
   zookeeper:
     image: wurstmeister/zookeeper
     container_name: zookeeper
     ports:
       - "2181:2181"
+    logging:
+      driver: none 
 
 
   kafka:
@@ -44,6 +61,8 @@ services:
       - ./kafka_certs:/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - ./kafka_config:/etc/kafka
+    logging:
+      driver: none 
 
   colector:
     build: ./colector
@@ -51,6 +70,7 @@ services:
     depends_on: 
       - kafka
       - rabbitmq  
+      - db
     restart: always
   
   rabbitmq:
@@ -61,6 +81,8 @@ services:
     volumes:
       - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    logging:
+      driver: none 
 
 
 networks:
