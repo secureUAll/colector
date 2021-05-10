@@ -104,6 +104,7 @@ def main_loop():
         elif msg.topic == colector_topics[3]:
             logging.warning(msg)
             logs(msg)
+            report(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
     logging.warning("Closing connection" )
@@ -126,8 +127,8 @@ def initial_worker(msg):
 
     for machine in msg.value['CONFIG']['ADDRESS_LIST']:
         #See if machine exists
-        QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
-        cur.execute(QUERY, (machine,))
+        QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s or dns= %s'''
+        cur.execute(QUERY, (machine,machine))
         
         QUERY_WORKER_MACHINE = '''INSERT INTO machines_machineworker(machine_id,worker_id) VALUES(%s,%s)'''
         #If not add to db
@@ -177,14 +178,25 @@ def logs(msg):
     txt=f.read()
     print(txt)"""
 
-    
+def send_email(msg):
+    QUERY_USER_EMAILS= "select \"notificationEmail\"  from machines_subscription ms, machines_machine mm where mm.id=ms.machine_id AND (mm.dns=%s OR mm.ip=%s) "
 
-"""
-mailserver = smtplib.SMTP('smtp.office365.com',587)
-mailserver.ehlo()
-mailserver.starttls()
-password=input("->")
-mailserver.login('margarida.martins@ua.pt', password)
-mailserver.sendmail('margarida.martins@ua.pt','margarida.martins@ua.pt','\npython email')
-mailserver.quit()
-"""
+    cur = conn.cursor()
+    cur.execute(QUERY_USER_EMAILS, (msg.value["MACHINE"],msg.value["MACHINE"]))
+    emails= cur.fetchall()
+    for email in emails:
+        mailserver = smtplib.SMTP('smtp.office365.com',587)
+        mailserver.ehlo()
+        mailserver.starttls()
+        password=input("->")
+        mailserver.login('margarida.martins@ua.pt', password)
+        mailserver.sendmail('margarida.martins@ua.pt',email[0],'\n')
+        mailserver.quit()
+    cur.close()
+
+def report(msg):
+    #TODO report 
+    send_email(msg)
+
+
+
