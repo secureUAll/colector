@@ -5,6 +5,7 @@ from datetime import date
 from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
+from datetime import datetime, timezone
 import logging
 import time
 import json
@@ -18,12 +19,10 @@ colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
 
 app = Celery()
 app.config_from_object('celeryconfig')
-
-
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(60, scan.s())
+    sender.add_periodic_task(10, scan.s())
 
 #get the next machines to be scanned
 @app.task
@@ -31,7 +30,7 @@ def scan():
     conn= connect_postgres()
     producer=connect_kafka_producer()
 
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" < NOW()'''
+    QUERY = '''SELECT id, ip, dns, scanLevel, periodicity  FROM  machines_machine WHERE nextScan < NOW()'''
     cur = conn.cursor()
     cur.execute(QUERY)
 
@@ -41,12 +40,12 @@ def scan():
         QUERY_WORKER_UPDATE = '''UPDATE workers_worker SET status=\'A\' WHERE id= %s'''
         
         if machine[4] == 'D':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan = NOW() + interval \'1 day\'  WHERE id= %s'''
             
         elif machine[4]=='M':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan= NOW() + interval \'1 month\'  WHERE id= %s'''
         else:
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan = NOW() + interval \'7 days\'  WHERE id= %s'''
         cur.execute(QUERY_MACHINE, (machine[0],))
 
         conn.commit()
@@ -60,6 +59,8 @@ def scan():
                 producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
                 producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+    
+    producer.send(colector_topics[1],key=bytes(1), value={"MACHINE":'0.0.0.0',"SCRAP_LEVEL":2})
     producer.flush()
     conn.close()
 
@@ -89,16 +90,19 @@ def main_loop():
  
     logging.warning(consumer.subscription())
     for msg in consumer:
-        
+        logging.critical("COLECTOR LOG MENSAGEM")
+        #logging.critical("WORKER LOG")
+        #logging.critical(message.value)
         if msg.topic == colector_topics[0]:
             if 'CONFIG' in msg.value:
                 #guard configuration on BD and retrive id
                 initial_worker(msg)
-            
+        elif msg.topic == colector_topics[1]:
+            continue
         elif msg.topic == colector_topics[2]:
             logging.warning("Received a message from frontend")
         elif msg.topic == colector_topics[3]:
-            logging.warning("Received logs")
+            logging.warning(msg)
             logs(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
@@ -130,7 +134,7 @@ def initial_worker(msg):
 
         machine_id = cur.fetchone()
         if machine_id is None:
-            QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
+            QUERY = '''INSERT INTO machines_machine(ip,dns, scanLevel,periodicity, nextScan) VALUES(%s,%s,%s,%s,%s) RETURNING id'''
             if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
                 cur.execute(QUERY, (machine,'null','2','W','NOW()'))
             else:
@@ -148,9 +152,30 @@ def initial_worker(msg):
 
 
 def logs(msg):
-    QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
-    #TODO store and process logs
-    #send notification email
+    logging.warning("ENTROU NOS LOGS")
+    QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
+    conn= connect_postgres()
+    cur = conn.cursor()
+
+    # parameters
+    dt = datetime.now(timezone.utc)
+    path="logs/"+str(round(time.time() * 1000))
+    worker_id=int.from_bytes(msg.key,"big")
+    machine_ip=msg.value["MACHINE"]
+
+    # insert into log's table
+    cur.execute(QUERY, (dt, path, machine_ip, worker_id))
+    conn.commit()
+    cur.close()
+    
+    # guardar os logs num ficheiro
+    f=open(path, "wb")
+    f.write(json.dumps(msg.value["RESULTS"]).encode('latin'))
+
+    """logging.warning("ENTROU NOS LOGS, CONECTOU À BD, GUARDOU NA TABELA, GUARDOU NO PATH, AGORA VAMOS VER O QUE FICOU GUARDADO")
+    f=open(path, "rb")
+    txt=f.read()
+    print(txt)"""
 
     
 
