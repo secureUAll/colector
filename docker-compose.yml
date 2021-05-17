@@ -70,7 +70,7 @@ services:
     depends_on: 
       - kafka
       - rabbitmq  
-      - db
+      #- db
     restart: always
   
   rabbitmq:
