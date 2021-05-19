@@ -22,7 +22,7 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(10, scan.s())
+    sender.add_periodic_task(60, scan.s())
 
 #get the next machines to be scanned
 @app.task
@@ -42,12 +42,12 @@ def scan():
         QUERY_WORKER_UPDATE = '''UPDATE workers_worker SET status=\'A\' WHERE id= %s'''
         
         if machine[4] == 'D':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan = NOW() + interval \'1 day\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
             
         elif machine[4]=='M':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan= NOW() + interval \'1 month\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\"= NOW() + interval \'1 month\'  WHERE id= %s'''
         else:
-            QUERY_MACHINE = '''UPDATE  machines_machine SET nextScan = NOW() + interval \'7 days\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
         cur.execute(QUERY_MACHINE, (machine[0],))
 
         conn.commit()
@@ -137,7 +137,7 @@ def initial_worker(msg):
 
         machine_id = cur.fetchone()
         if machine_id is None:
-            QUERY = '''INSERT INTO machines_machine(ip,dns, scanLevel,periodicity, nextScan) VALUES(%s,%s,%s,%s,%s) RETURNING id'''
+            QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
             if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
                 cur.execute(QUERY, (machine,'null','2','W','NOW()'))
             else:
