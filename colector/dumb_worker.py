@@ -50,7 +50,11 @@ message={'CONFIG':{'ADDRESS_LIST':['123.4.4.4','123.3.3.3','domain@ua.pt']}}
 producer.send(colector_topics[0], key=random , value=message)
 producer.flush()
 
+worker_id=0
 for message in consumer:
     logging.warning("WORKER ")
     logging.warning(message.topic)
     logging.warning(message.value)
+    if message.topic==colector_topics[0] and "WORKER_ID" in message.value:
+        worker_id=message.value["WORKER_ID"]
+        producer.send(colector_topics[3], key=worker_id.to_bytes(2, 'big'), value={ 'MACHINE': '0.0.0.0', 'RESULTS': ['dict1', 'dict2', 'dict3']})

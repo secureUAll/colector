@@ -2,3 +2,6 @@ pymongo
 celery
 kafka-python
 psycopg2-binary
+datetime
+xmltodict
+psycopg2-binary

@@ -1,9 +1,11 @@
 from celery import Celery
 import logging
 from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres
+from datetime import date
 from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
+from datetime import datetime, timezone
 import logging
 import time
 import json
@@ -17,8 +19,6 @@ colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
 
 app = Celery()
 app.config_from_object('celeryconfig')
-
-
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
@@ -30,19 +30,22 @@ def scan():
     conn= connect_postgres()
     producer=connect_kafka_producer()
 
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" < NOW()'''
+
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" <= NOW()'''
+
     cur = conn.cursor()
     cur.execute(QUERY)
 
     machines= cur.fetchall()
     for machine in machines:
         QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+        QUERY_WORKER_UPDATE = '''UPDATE workers_worker SET status=\'A\' WHERE id= %s'''
         
         if machine[4] == 'D':
             QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
             
         elif machine[4]=='M':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\"= NOW() + interval \'1 month\'  WHERE id= %s'''
         else:
             QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
         cur.execute(QUERY_MACHINE, (machine[0],))
@@ -52,10 +55,14 @@ def scan():
 
         workers= cur.fetchall()
         for worker in workers:
+            logging.warning(bytes([worker[0]]))
+            cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
+            conn.commit()
             if machine[1] == 'null':
-                producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+                producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
-                producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+                producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+
     producer.flush()
     conn.close()
 
@@ -78,27 +85,33 @@ def main():
     logging.warning("connected to postgres")
     logging.warning(conn)
 
-    logging.warning(consumer.subscription())
+    producer.send(colector_topics[0],value={"init consumer":"sss"})
     main_loop()
 
 def main_loop():
  
     logging.warning(consumer.subscription())
     for msg in consumer:
-        
+        logging.critical("COLECTOR LOG MENSAGEM")
+        #logging.critical("WORKER LOG")
+        #logging.critical(message.value)
         if msg.topic == colector_topics[0]:
             if 'CONFIG' in msg.value:
                 #guard configuration on BD and retrive id
                 initial_worker(msg)
-            
+        elif msg.topic == colector_topics[1]:
+            continue
         elif msg.topic == colector_topics[2]:
             if msg.key==b'SCAN':
                 scan_machine(msg)
         elif msg.topic == colector_topics[3]:
-            logging.warning("Received logs")
+            logging.warning(msg)
             logs(msg)
+            report(msg)
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
+    logging.warning("Closing connection" )
+    conn.close()
 
 def initial_worker(msg):
     logging.warning("Received a init message")
@@ -108,7 +121,7 @@ def initial_worker(msg):
 
     # create a new cursor
     cur = conn.cursor()
-    cur.execute(QUERY, ("worker","I","0","NOW()"))
+    cur.execute(QUERY, ("worker","I","0", str(date.today())))
 
     # get the generated id back
     worker_id = cur.fetchone()[0]
@@ -117,8 +130,8 @@ def initial_worker(msg):
 
     for machine in msg.value['CONFIG']['ADDRESS_LIST']:
         #See if machine exists
-        QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
-        cur.execute(QUERY, (machine,))
+        QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s or dns= %s'''
+        cur.execute(QUERY, (machine,machine))
         
         QUERY_WORKER_MACHINE = '''INSERT INTO machines_machineworker(machine_id,worker_id) VALUES(%s,%s)'''
         #If not add to db
@@ -174,18 +187,50 @@ def scan_machine(msg):
     conn.close()
 
 def logs(msg):
-    QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s'''
-    #TODO store and process logs
-    #send notification email
+    logging.warning("ENTROU NOS LOGS")
+    QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
+    conn= connect_postgres()
+    cur = conn.cursor()
 
+    # parameters
+    dt = datetime.now(timezone.utc)
+    path="logs/"+str(round(time.time() * 1000))
+    worker_id=int.from_bytes(msg.key,"big")
+    machine_ip=msg.value["MACHINE"]
+
+    # insert into log's table
+    cur.execute(QUERY, (dt, path, machine_ip, worker_id))
+    conn.commit()
+    cur.close()
     
+    # guardar os logs num ficheiro
+    f=open(path, "wb")
+    f.write(json.dumps(msg.value["RESULTS"]).encode('latin'))
 
-"""
-mailserver = smtplib.SMTP('smtp.office365.com',587)
-mailserver.ehlo()
-mailserver.starttls()
-password=input("->")
-mailserver.login('margarida.martins@ua.pt', password)
-mailserver.sendmail('margarida.martins@ua.pt','margarida.martins@ua.pt','\npython email')
-mailserver.quit()
-"""
+    """logging.warning("ENTROU NOS LOGS, CONECTOU À BD, GUARDOU NA TABELA, GUARDOU NO PATH, AGORA VAMOS VER O QUE FICOU GUARDADO")
+    f=open(path, "rb")
+    txt=f.read()
+    print(txt)"""
+
+def send_email(msg):
+    QUERY_USER_EMAILS= "select \"notificationEmail\"  from machines_subscription ms, machines_machine mm where mm.id=ms.machine_id AND (mm.dns=%s OR mm.ip=%s) "
+
+    cur = conn.cursor()
+    cur.execute(QUERY_USER_EMAILS, (msg.value["MACHINE"],msg.value["MACHINE"]))
+    emails= cur.fetchall()
+    for email in emails:
+        mailserver = smtplib.SMTP('smtp.office365.com',587)
+        mailserver.ehlo()
+        mailserver.starttls()
+        password=input("->")
+        mailserver.login('margarida.martins@ua.pt', password)
+        mailserver.sendmail('margarida.martins@ua.pt',email[0],'\n')
+        mailserver.quit()
+    cur.close()
+
+def report(msg):
+    #TODO report 
+    send_email(msg)
+
+
+
