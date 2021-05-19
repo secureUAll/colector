@@ -15,7 +15,7 @@ import smtplib
 import ssl
 
 
-colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
+colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG','UPDATE']
 
 app = Celery()
 app.config_from_object('celeryconfig')
@@ -104,6 +104,8 @@ def main_loop():
         elif msg.topic == colector_topics[2]:
             if msg.key==b'SCAN':
                 scan_machine(msg)
+            elif msg.key == b'UPDATE':
+                update_worker(msg)
         elif msg.topic == colector_topics[3]:
             logging.warning(msg)
             logs(msg)
@@ -140,9 +142,9 @@ def initial_worker(msg):
         if machine_id is None:
             QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
             if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
-                cur.execute(QUERY, (machine,'null','2','W','NOW()'))
+                cur.execute(QUERY, (machine,'','2','W','NOW()'))
             else:
-                cur.execute(QUERY, ('null', machine,'2','W','NOW()'))
+                cur.execute(QUERY, ('', machine,'2','W','NOW()'))
             machine_id= cur.fetchone()
             conn.commit()
 
@@ -184,12 +186,32 @@ def scan_machine(msg):
         else: 
             producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
     producer.flush()
-    conn.close()
+    cur.close()
+
+def update_worker(msg):
+    logging.warning("UPDATING WORKER")
+    
+    worker_machine_list= []
+    worker_id = msg.value["ID"]
+
+    QUERY_WORKER = '''SELECT mm.ip, mm.dns FROM machines_machineworker as mw INNER JOIN  machines_machine as mm ON mw.machine_id = mm.id WHERE mw.worker_id=%s'''
+    cur = conn.cursor()
+    conn.execute(QUERY_WORKER, (worker_id,))
+
+    machines=cur.fetchall()
+    for machine in machines:
+        if machine[0]:
+            worker_machine_list.append(machine[0])
+        else:
+            worker_machine_list.append(machine[1])
+    cur.close()
+    producer.send(colector_topics[4], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
+    producer.flush()
+
 
 def logs(msg):
     logging.warning("ENTROU NOS LOGS")
     QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
-    conn= connect_postgres()
     cur = conn.cursor()
 
     # parameters
