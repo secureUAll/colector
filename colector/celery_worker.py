@@ -14,6 +14,9 @@ import re
 import smtplib
 import ssl
 
+producer=None
+consumer=None
+conn=None
 
 colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
 
@@ -98,7 +101,7 @@ def main_loop():
         if msg.topic == colector_topics[0]:
             if 'CONFIG' in msg.value:
                 #guard configuration on BD and retrive id
-                initial_worker(msg)
+                initial_worker(msg.value,msg.key)
         elif msg.topic == colector_topics[1]:
             continue
         elif msg.topic == colector_topics[2]:
@@ -113,7 +116,7 @@ def main_loop():
     logging.warning("Closing connection" )
     conn.close()
 
-def initial_worker(msg):
+def initial_worker(value,key):
     logging.warning("Received a init message")
 
     #sql query to insert worker
@@ -128,7 +131,7 @@ def initial_worker(msg):
     # commit the changes to the database
     conn.commit()
 
-    for machine in msg.value['CONFIG']['ADDRESS_LIST']:
+    for machine in value['CONFIG']['ADDRESS_LIST']:
         #See if machine exists
         QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s or dns= %s'''
         cur.execute(QUERY, (machine,machine))
@@ -151,7 +154,7 @@ def initial_worker(msg):
     cur.close()
 
     #send id
-    producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
+    producer.send(colector_topics[0],key=key, value={'STATUS':'200','WORKER_ID':worker_id})
     producer.flush()
 
 def scan_machine(msg):
@@ -179,10 +182,10 @@ def scan_machine(msg):
 
     workers= cur.fetchall()
     for worker in workers:
-        if machine[1] == 'null':
-            producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+        if machine[1] == '':
+            producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
         else: 
-            producer.send(colector_topics[1],key=bytes(worker[0]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+            producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
     producer.flush()
     conn.close()
 
