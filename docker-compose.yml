@@ -1,20 +1,19 @@
 version: '3'
 
 services:
-  
-  #db:
-    #image: postgres
-    # restart: always
-    # ports:
-    #     - 5432:5432 # TODO! Remove on production!
-    # volumes:
-    #     - ./init.sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    #     #- ./data/db:/var/lib/postgresql/data
-        
-    # environment:
-    #     - POSTGRES_DB=secureuall
-    #     - POSTGRES_USER=frontend
-    #     - POSTGRES_PASSWORD=abc
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432 # TODO! Remove on production!
+    volumes:
+      - ./init.sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    #- ./data/db:/var/lib/postgresql/data
+
+    environment:
+      - POSTGRES_DB=secureuall
+      - POSTGRES_USER=frontend
+      - POSTGRES_PASSWORD=abc
 
   zookeeper:
     image: wurstmeister/zookeeper
@@ -24,6 +23,16 @@ services:
     #logging:
     #  driver: none 
 
+  shared_mem:
+    image: docker.io/bitnami/redis:6.2
+    container_name: shared_mem
+    hostname: shared_mem
+    environment: 
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'redis_data:/bitnami/redis/data'
 
   kafka:
     image: wurstmeister/kafka
@@ -35,7 +44,7 @@ services:
       KAFKA_ADVERTISED_HOST: localhost
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_CREATE_TOPICS: 'INIT:1:1,SCAN_REQUEST:1:1,FRONTEND:1:1,LOG:1:1'
-      #KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_ADVERTISED_LISTENERS: SASL_SSL://kafka:9092,OUT://localhost:29092
       KAFKA_LISTENERS: SASL_SSL://kafka:9092,OUT://kafka:29092
       KAFKA_SSL_KEYSTORE_LOCATION: '/certs/kafka.server.keystore.jks'
@@ -61,15 +70,16 @@ services:
       - ./kafka_certs:/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - ./kafka_config:/etc/kafka
-    #logging:
-    #  driver: none 
+    logging:
+      driver: none 
 
   colector:
     build: ./colector
     container_name: colector
     depends_on: 
       - kafka
-      - rabbitmq  
+      - rabbitmq 
+      - shared_mem 
       #- db
     restart: always
   
@@ -81,11 +91,15 @@ services:
     volumes:
       - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
-    #logging:
-    #  driver: none 
+    logging:
+      driver: none 
 
 
 networks:
   default:
     external:
       name: rede
+
+volumes:
+  redis_data:
+    driver: local

@@ -1,6 +1,7 @@
 from kafka import KafkaConsumer, KafkaProducer
 import json
 import psycopg2
+import redis
 
 def connect_kafka_producer():
     #kafka producer
@@ -40,4 +41,8 @@ def connect_kafka_consumer():
 def connect_postgres():
     conn=psycopg2.connect(host="db",database="secureuall",user="frontend", password="abc")
     return conn
+
+def connect_redis():
+    r=redis.Redis(host='shared_mem', port=6379, db=0)
+    return r
 

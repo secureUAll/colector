@@ -25,7 +25,7 @@ def convert_to_json(output_file):
 
 #time.sleep(30)
 time.sleep(22)
-colector_topics=['INIT','SCAN_REQUEST','LOG']
+colector_topics=['INIT','SCAN_REQUEST','LOG','HEARTBEAT']
 
 WORKER_ID = 0
 
@@ -111,7 +111,8 @@ for message in consumer:
                 # runn image
                 os.system("docker  run --user \"$(id -u):$(id -g)\" -v `pwd`:`pwd` -w `pwd` -i -t localhost/vulscan:latest -sV --script=vulscan/vulscan.nse " + machine + " -oX out.xml")
 
-                output_json = convert_to_json("out.xml")
+                #output_json = convert_to_json("out.xml")
+                output_json="{}"
 
             elif message.value["SCRAP_LEVEL"] == '3':
                 continue
@@ -119,7 +120,12 @@ for message in consumer:
                 continue
             
             logging.warning("vai mandar")
-            producer.send(colector_topics[2], key=WORKER_ID, value=output_json)
+            producer.send(colector_topics[2], key=bytes(WORKER_ID), value=output_json)
+            producer.flush()
+    elif message.topic==colector_topics[3]:
+        if message.value["from"]=="colector":
+            print("VAI ENVIAAAR")
+            producer.send(colector_topics[3], value={'from':WORKER_ID, 'to':"colector"})
             producer.flush()
     
 #logging.warning(message.topic)

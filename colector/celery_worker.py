@@ -1,6 +1,6 @@
 from celery import Celery
 import logging
-from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres
+from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres, connect_redis
 from datetime import date
 from pymongo import MongoClient
 from kafka import KafkaConsumer, KafkaProducer
@@ -14,15 +14,14 @@ import re
 import smtplib
 import ssl
 
-
-colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG']
-
+colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG','HEARTBEAT']
 app = Celery()
 app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(60, scan.s())
+    #sender.add_periodic_task(30, scan.s())
+    sender.add_periodic_task(10, heartbeat.s()) # TODO: alterar para 300
 
 #get the next machines to be scanned
 @app.task
@@ -66,12 +65,47 @@ def scan():
     producer.flush()
     conn.close()
 
+@app.task
+def heartbeat():
+    conn= connect_postgres()
+    producer=connect_kafka_producer()
+    cur = conn.cursor()
+    r=connect_redis()
+    r.set("waiting_workers", str([]))
+
+    QUERY_WORKER = '''SELECT id, status FROM workers_worker'''
+
+    cur.execute(QUERY_WORKER, ())
+
+    workers= cur.fetchall()
+    workers_all=[x[0] for x in workers]
+
+    if len(workers)>0:
+        producer.send(colector_topics[4], {'to':'all', 'from':'colector'})
+        producer.flush()
+    
+    time.sleep(3) # TODO: alterar para 60
+
+    waiting_workers=json.loads(r.get("waiting_workers"))
+
+    workers_del=[x for x in workers_all if x not in waiting_workers]
+    for w in workers_del:
+        QUERY_WORKER_DEL = '''DELETE FROM workers_worker WHERE id=%s'''
+        cur.execute(QUERY_WORKER_DEL, (w,))
+        conn.commit()
+        
+    print("Workers alive: "+str(waiting_workers))
+    conn.close()
 
 @app.task
 def main():
     global producer
     global consumer
     global conn
+    global workers_respond
+
+    # temp workers
+    workers_respond=[]
     
     #kafka producer
     producer = connect_kafka_producer()
@@ -89,12 +123,9 @@ def main():
     main_loop()
 
 def main_loop():
- 
+    r=connect_redis()
     logging.warning(consumer.subscription())
     for msg in consumer:
-        logging.critical("COLECTOR LOG MENSAGEM")
-        #logging.critical("WORKER LOG")
-        #logging.critical(message.value)
         if msg.topic == colector_topics[0]:
             if 'CONFIG' in msg.value:
                 #guard configuration on BD and retrive id
@@ -107,6 +138,12 @@ def main_loop():
             logging.warning(msg)
             logs(msg)
             report(msg)
+        elif msg.topic == colector_topics[4]:
+            if msg.value["to"]=="colector":
+                waiting_workers=json.loads(r.get("waiting_workers"))
+                waiting_workers.append(msg.value["from"])
+                r.set("waiting_workers", str(waiting_workers))
+                
         else:
             logging.warning("Message topic: "+ msg.topic + " does not exist" )
     logging.warning("Closing connection" )
@@ -148,7 +185,7 @@ def initial_worker(msg):
         cur.execute(QUERY_WORKER_MACHINE, (machine_id[0],worker_id)) 
         conn.commit()
     cur.close()
-
+    
     #send id
     producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
     producer.flush()
@@ -178,7 +215,7 @@ def logs(msg):
     """logging.warning("ENTROU NOS LOGS, CONECTOU À BD, GUARDOU NA TABELA, GUARDOU NO PATH, AGORA VAMOS VER O QUE FICOU GUARDADO")
     f=open(path, "rb")
     txt=f.read()
-    print(txt)"""
+    """
 
 def send_email(msg):
     QUERY_USER_EMAILS= "select \"notificationEmail\"  from machines_subscription ms, machines_machine mm where mm.id=ms.machine_id AND (mm.dns=%s OR mm.ip=%s) "
