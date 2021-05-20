@@ -196,7 +196,7 @@ def update_worker(msg):
 
     QUERY_WORKER = '''SELECT mm.ip, mm.dns FROM machines_machineworker as mw INNER JOIN  machines_machine as mm ON mw.machine_id = mm.id WHERE mw.worker_id=%s'''
     cur = conn.cursor()
-    conn.execute(QUERY_WORKER, (worker_id,))
+    cur.execute(QUERY_WORKER, (worker_id,))
 
     machines=cur.fetchall()
     for machine in machines:
