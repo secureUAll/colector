@@ -97,6 +97,7 @@ for message in consumer:
             WORKER_ID = message.value['WORKER_ID']
 
     elif message.topic== colector_topics[1]:
+        logging.warning("RECEBI UM REQUEST")
         logging.warning(int.from_bytes(message.key,"big"))
         logging.warning(WORKER_ID)
         if int.from_bytes(message.key,"big") == WORKER_ID:
