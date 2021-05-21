@@ -1,11 +1,10 @@
+from Heartbeat import Heartbeat
 from celery import Celery
 import logging
 import os
 import sys
 from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres, connect_redis
-from datetime import date
 
-from datetime import datetime, timezone
 import logging
 import time
 import json
@@ -25,7 +24,7 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    #sender.add_periodic_task(10, heartbeat.s()) # TODO: alterar para 300
+    sender.add_periodic_task(300, heartbeat.s())
     sender.add_periodic_task(60, scan.s())
 
 @app.task()
@@ -68,7 +67,7 @@ def scan():
             logging.warning(bytes([worker[0]]))
             cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
             conn.commit()
-            if machine[1] == 'null':
+            if machine[1] != '':
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
@@ -78,63 +77,17 @@ def scan():
 
 @app.task
 def heartbeat():
-    conn= connect_postgres()
-    producer=connect_kafka_producer()
-    cur = conn.cursor()
-    r=connect_redis()
-    r.set("waiting_workers", str([]))
+    hb = Heartbeat()
+    hb.startup()
+    hb.broadcast()
 
-    QUERY_WORKER = '''SELECT id, status FROM workers_worker'''
+    #ttl
+    time.sleep(30)
 
-    cur.execute(QUERY_WORKER, ())
-
-    workers= cur.fetchall()
-    workers_all=[x[0] for x in workers]
-
-    if len(workers)>0:
-        producer.send(colector_topics[4], {'to':'all', 'from':'colector'})
-        producer.flush()
-    
-    time.sleep(3) # TODO: alterar para 60
-
-    waiting_workers=json.loads(r.get("waiting_workers"))
-
-    workers_del=[x for x in workers_all if x not in waiting_workers]
-    for w in workers_del:
-        QUERY_WORKER_DEL = '''DELETE FROM workers_worker WHERE id=%s'''
-        cur.execute(QUERY_WORKER_DEL, (w,))
-        conn.commit()
-        
-    print("Workers alive: "+str(waiting_workers))
-    conn.close()
+    hb.endup()
 
 
 
-
-def logs(msg):
-    logging.warning("ENTROU NOS LOGS")
-    QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
-    cur = conn.cursor()
-
-    # parameters
-    dt = datetime.now(timezone.utc)
-    path="logs/"+str(round(time.time() * 1000))
-    worker_id=int.from_bytes(msg.key,"big")
-    machine_ip=msg.value["MACHINE"]
-
-    # insert into log's table
-    cur.execute(QUERY, (dt, path, machine_ip, worker_id))
-    conn.commit()
-    cur.close()
-    
-    # guardar os logs num ficheiro
-    f=open(path, "wb")
-    f.write(json.dumps(msg.value["RESULTS"]).encode('latin'))
-
-    """logging.warning("ENTROU NOS LOGS, CONECTOU À BD, GUARDOU NA TABELA, GUARDOU NO PATH, AGORA VAMOS VER O QUE FICOU GUARDADO")
-    f=open(path, "rb")
-    txt=f.read()
-    """
 
 @app.task()
 def send_email(msg):

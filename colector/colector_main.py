@@ -1,10 +1,10 @@
-from kafka import producer
-
+import time
+from datetime import datetime, timezone
 from connections import connect_kafka_producer,connect_kafka_consumer,  connect_postgres, connect_redis
 import logging
 import json
 import re
-from datetime import date
+
 
 class Main():
     def __init__(self):
@@ -59,7 +59,7 @@ class Main():
 
         # create a new cursor
         cur = self.conn.cursor()
-        cur.execute(QUERY, ("worker","I","0", str(date.today())))
+        cur.execute(QUERY, ("worker","I","0", "NOW()"))
 
         # get the generated id back
         worker_id = cur.fetchone()[0]
@@ -144,4 +144,27 @@ class Main():
         self.producer.send(self.colector_topics[5], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
         self.producer.flush()
 
-    
+    def logs(self,msg):
+        logging.warning("ENTROU NOS LOGS")
+        QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
+        cur = self.conn.cursor()
+
+        # parameters
+        dt = datetime.now(timezone.utc)
+        path="logs/"+str(round(time.time() * 1000))
+        worker_id=int.from_bytes(msg.key,"big")
+        machine_ip=msg.value["MACHINE"]
+
+        # insert into log's table
+        cur.execute(QUERY, (dt, path, machine_ip, worker_id))
+        self.conn.commit()
+        cur.close()
+        
+        # guardar os logs num ficheiro
+        f=open(path, "wb")
+        f.write(json.dumps(msg.value["RESULTS"]).encode('latin'))
+
+        """logging.warning("ENTROU NOS LOGS, CONECTOU À BD, GUARDOU NA TABELA, GUARDOU NO PATH, AGORA VAMOS VER O QUE FICOU GUARDADO")
+        f=open(path, "rb")
+        txt=f.read()
+        """

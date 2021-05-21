@@ -87,8 +87,8 @@ producer.send(colector_topics[0], key=random , value=message)
 producer.flush()
 
 for message in consumer:
-    logging.critical("WORKER LOG" + str(WORKER_ID))
-    logging.critical(message.value)
+    logging.critical("WORKER LOG " + str(WORKER_ID))
+    #logging.critical(message.value)
     # initial message response to save WORKER_ID
     if message.topic == "INIT":
         # Get ID
@@ -122,10 +122,10 @@ for message in consumer:
             logging.warning("vai mandar")
             producer.send(colector_topics[2], key=bytes(WORKER_ID), value=output_json)
             producer.flush()
-    elif message.topic==colector_topics[3]:
+    elif message.topic=="HEARTBEAT":
         if message.value["from"]=="colector":
-            print("VAI ENVIAAAR")
-            producer.send(colector_topics[3], value={'from':WORKER_ID, 'to':"colector"})
+            print("VAI ENVIAAAR" + str({'from':WORKER_ID, 'to':"colector"}))
+            producer.send("HEARTBEAT", value={'from':WORKER_ID, 'to':"colector"})
             producer.flush()
     
 #logging.warning(message.topic)
