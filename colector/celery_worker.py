@@ -14,14 +14,19 @@ import re
 import smtplib
 import ssl
 
-colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG','HEARTBEAT']
+producer=None
+consumer=None
+conn=None
+
+colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG','UPDATE', 'HEARTBEAT']
+
 app = Celery()
 app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    #sender.add_periodic_task(30, scan.s())
     sender.add_periodic_task(10, heartbeat.s()) # TODO: alterar para 300
+    sender.add_periodic_task(6000, scan.s())
 
 #get the next machines to be scanned
 @app.task
@@ -129,11 +134,14 @@ def main_loop():
         if msg.topic == colector_topics[0]:
             if 'CONFIG' in msg.value:
                 #guard configuration on BD and retrive id
-                initial_worker(msg)
+                initial_worker(msg.value,msg.key)
         elif msg.topic == colector_topics[1]:
             continue
         elif msg.topic == colector_topics[2]:
-            logging.warning("Received a message from frontend")
+            if msg.key==b'SCAN':
+                scan_machine(msg)
+            elif msg.key == b'UPDATE':
+                update_worker(msg)
         elif msg.topic == colector_topics[3]:
             logging.warning(msg)
             logs(msg)
@@ -149,7 +157,7 @@ def main_loop():
     logging.warning("Closing connection" )
     conn.close()
 
-def initial_worker(msg):
+def initial_worker(value,key):
     logging.warning("Received a init message")
 
     #sql query to insert worker
@@ -164,7 +172,7 @@ def initial_worker(msg):
     # commit the changes to the database
     conn.commit()
 
-    for machine in msg.value['CONFIG']['ADDRESS_LIST']:
+    for machine in value['CONFIG']['ADDRESS_LIST']:
         #See if machine exists
         QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s or dns= %s'''
         cur.execute(QUERY, (machine,machine))
@@ -176,9 +184,9 @@ def initial_worker(msg):
         if machine_id is None:
             QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
             if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
-                cur.execute(QUERY, (machine,'null','2','W','NOW()'))
+                cur.execute(QUERY, (machine,'','2','W','NOW()'))
             else:
-                cur.execute(QUERY, ('null', machine,'2','W','NOW()'))
+                cur.execute(QUERY, ('', machine,'2','W','NOW()'))
             machine_id= cur.fetchone()
             conn.commit()
 
@@ -187,14 +195,65 @@ def initial_worker(msg):
     cur.close()
     
     #send id
-    producer.send(colector_topics[0],key=msg.key, value={'STATUS':'200','WORKER_ID':worker_id})
+    producer.send(colector_topics[0],key=key, value={'STATUS':'200','WORKER_ID':worker_id})
+    producer.flush()
+
+def scan_machine(msg):
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\",periodicity  FROM  machines_machine WHERE ip=%s OR dns=%s'''
+    
+    cur = conn.cursor()
+    cur.execute(QUERY,(msg.value['MACHINE'],msg.value['MACHINE']))
+
+
+    machine= cur.fetchone()
+    logging.warning( machine  )
+    QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+        
+    if machine[4] == 'D':
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+            
+    elif machine[4]=='M':
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+    else:
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+    cur.execute(QUERY_MACHINE, (machine[0],))
+
+    conn.commit()
+    cur.execute(QUERY_WORKER, (machine[0],))
+
+    workers= cur.fetchall()
+    for worker in workers:
+        if machine[1] == '':
+            producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+        else: 
+            producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+    producer.flush()
+    cur.close()
+
+def update_worker(msg):
+    logging.warning("UPDATING WORKER")
+    
+    worker_machine_list= []
+    worker_id = msg.value["ID"]
+
+    QUERY_WORKER = '''SELECT mm.ip, mm.dns FROM machines_machineworker as mw INNER JOIN  machines_machine as mm ON mw.machine_id = mm.id WHERE mw.worker_id=%s'''
+    cur = conn.cursor()
+    cur.execute(QUERY_WORKER, (worker_id,))
+
+    machines=cur.fetchall()
+    for machine in machines:
+        if machine[0]:
+            worker_machine_list.append(machine[0])
+        else:
+            worker_machine_list.append(machine[1])
+    cur.close()
+    producer.send(colector_topics[4], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
     producer.flush()
 
 
 def logs(msg):
     logging.warning("ENTROU NOS LOGS")
     QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
-    conn= connect_postgres()
     cur = conn.cursor()
 
     # parameters

@@ -6,3 +6,4 @@ datetime
 xmltodict
 psycopg2-binary
 redis
+pytest
