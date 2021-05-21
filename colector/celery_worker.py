@@ -18,7 +18,7 @@ producer=None
 consumer=None
 conn=None
 
-colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG','UPDATE', 'HEARTBEAT']
+colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG', 'HEARTBEAT', 'UPDATE']
 
 app = Celery()
 app.config_from_object('celeryconfig')
@@ -247,7 +247,7 @@ def update_worker(msg):
         else:
             worker_machine_list.append(machine[1])
     cur.close()
-    producer.send(colector_topics[4], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
+    producer.send(colector_topics[5], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
     producer.flush()
 
 
