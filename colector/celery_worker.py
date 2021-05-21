@@ -1,3 +1,4 @@
+from Email import Email
 from Heartbeat import Heartbeat
 from celery import Celery
 import logging
@@ -91,20 +92,9 @@ def heartbeat():
 
 @app.task()
 def send_email(msg):
-    QUERY_USER_EMAILS= "select \"notificationEmail\"  from machines_subscription ms, machines_machine mm where mm.id=ms.machine_id AND (mm.dns=%s OR mm.ip=%s) "
-
-    cur = conn.cursor()
-    cur.execute(QUERY_USER_EMAILS, (msg.value["MACHINE"],msg.value["MACHINE"]))
-    emails= cur.fetchall()
-    for email in emails:
-        mailserver = smtplib.SMTP('smtp.office365.com',587)
-        mailserver.ehlo()
-        mailserver.starttls()
-        password=input("->")
-        mailserver.login('margarida.martins@ua.pt', password)
-        mailserver.sendmail('margarida.martins@ua.pt',email[0],'\n')
-        mailserver.quit()
-    cur.close()
+    em = Email(msg)
+    em.startup()
+    em.broadcast()
 
 def report(msg):
     #TODO report 
