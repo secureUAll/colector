@@ -1,19 +1,20 @@
 version: '3'
 
 services:
-  db:
-    image: postgres
-    restart: always
-    ports:
-      - 5432:5432 # TODO! Remove on production!
-    volumes:
-      - ./init.sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    #- ./data/db:/var/lib/postgresql/data
+  
+  #db:
+    #image: postgres
+    #restart: always
+    #ports:
+      #- 5432:5432 # TODO! Remove on production!
+    #volumes:
+      #- ./init.sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      #- ./data/db:/var/lib/postgresql/data
 
-    environment:
-      - POSTGRES_DB=secureuall
-      - POSTGRES_USER=frontend
-      - POSTGRES_PASSWORD=abc
+    #environment:
+      #- POSTGRES_DB=secureuall
+      #- POSTGRES_USER=frontend
+      #- POSTGRES_PASSWORD=abc
 
   zookeeper:
     image: wurstmeister/zookeeper
@@ -21,7 +22,7 @@ services:
     ports:
       - "2181:2181"
     #logging:
-    #  driver: none 
+      #driver: none 
 
   shared_mem:
     image: docker.io/bitnami/redis:6.2
@@ -70,8 +71,8 @@ services:
       - ./kafka_certs:/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - ./kafka_config:/etc/kafka
-    logging:
-      driver: none 
+    #logging:
+      #driver: none 
 
   colector:
     build: ./colector
@@ -91,8 +92,8 @@ services:
     volumes:
       - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
-    logging:
-      driver: none 
+    #logging:
+      #driver: none 
 
 
 networks:
