@@ -38,8 +38,8 @@ class Main():
                     self.update_worker(msg)
             elif msg.topic == self.colector_topics[3]:
                 logging.warning(msg)
-                #logs(msg)
-                #report(msg)
+                self.logs(msg)
+                self.report(msg)
             elif msg.topic == self.colector_topics[4]:
                 if msg.value["to"]=="colector":
                     waiting_workers=json.loads(r.get("waiting_workers"))
@@ -168,3 +168,8 @@ class Main():
         f=open(path, "rb")
         txt=f.read()
         """
+    
+    def report(self):
+        #chama report
+        from celery_worker import send_email
+        send_email("qqcena")

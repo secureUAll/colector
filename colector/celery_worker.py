@@ -8,11 +8,7 @@ from connections import connect_kafka_consumer, connect_kafka_producer, connect_
 
 import logging
 import time
-import json
-import psycopg2
-import re
-import smtplib
-import ssl
+
 
 producer=None
 consumer=None
