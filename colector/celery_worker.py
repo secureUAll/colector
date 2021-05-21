@@ -2,9 +2,7 @@ from celery import Celery
 import logging
 from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres, connect_redis
 from datetime import date
-from pymongo import MongoClient
-from kafka import KafkaConsumer, KafkaProducer
-from kafka.errors import KafkaError
+from main import Main
 from datetime import datetime, timezone
 import logging
 import time
@@ -25,8 +23,12 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(10, heartbeat.s()) # TODO: alterar para 300
+    #sender.add_periodic_task(10, heartbeat.s()) # TODO: alterar para 300
     sender.add_periodic_task(6000, scan.s())
+
+@app.task(base=Main)
+def main():
+    logging.warning("Doing something?")
 
 #get the next machines to be scanned
 @app.task
@@ -103,7 +105,7 @@ def heartbeat():
     conn.close()
 
 @app.task
-def main():
+def main1():
     global producer
     global consumer
     global conn
