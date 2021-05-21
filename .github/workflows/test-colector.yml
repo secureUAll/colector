@@ -9,6 +9,6 @@ jobs:
       - name: Build the stack
         run: | 
           echo "Starting tests..."
-          docker network create -d bridge network
+          docker network create rede
           docker-compose up -d
       
