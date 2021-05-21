@@ -1,4 +1,5 @@
 from kafka import producer
+
 from connections import connect_kafka_producer,connect_kafka_consumer,  connect_postgres, connect_redis
 import logging
 import json

@@ -1,8 +1,10 @@
 from celery import Celery
 import logging
+import os
+import sys
 from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres, connect_redis
 from datetime import date
-from main import Main
+
 from datetime import datetime, timezone
 import logging
 import time
@@ -17,17 +19,18 @@ consumer=None
 conn=None
 
 colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG', 'HEARTBEAT', 'UPDATE']
-
+sys.path.append(os.getcwd())
 app = Celery()
 app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     #sender.add_periodic_task(10, heartbeat.s()) # TODO: alterar para 300
-    sender.add_periodic_task(6000, scan.s())
+    sender.add_periodic_task(60, scan.s())
 
 @app.task()
 def main():
+    from colector_main import Main
     m=Main()
     m.run()
 
@@ -133,6 +136,7 @@ def logs(msg):
     txt=f.read()
     """
 
+@app.task()
 def send_email(msg):
     QUERY_USER_EMAILS= "select \"notificationEmail\"  from machines_subscription ms, machines_machine mm where mm.id=ms.machine_id AND (mm.dns=%s OR mm.ip=%s) "
 

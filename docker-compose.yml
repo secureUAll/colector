@@ -71,8 +71,8 @@ services:
       - ./kafka_certs:/certs
       - /var/run/docker.sock:/var/run/docker.sock
       - ./kafka_config:/etc/kafka
-    #logging:
-      #driver: none 
+    logging:
+      driver: none 
 
   colector:
     build: ./colector
