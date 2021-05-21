@@ -37,8 +37,8 @@ class Main():
                 elif msg.key == b'UPDATE':
                     self.update_worker(msg)
             elif msg.topic == self.colector_topics[3]:
-                logging.warning(msg)
-                self.logs(msg)
+                #logging.warning(msg)
+                #self.logs(msg)
                 self.report(msg)
             elif msg.topic == self.colector_topics[4]:
                 if msg.value["to"]=="colector":
@@ -169,7 +169,7 @@ class Main():
         txt=f.read()
         """
     
-    def report(self):
+    def report(self,msg):
         #chama report
         from celery_worker import send_email
-        send_email("qqcena")
+        send_email(msg)
