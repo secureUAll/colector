@@ -1,7 +1,7 @@
 name: Docker Compose Actions Workflow
 on: push
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -10,3 +10,9 @@ jobs:
           echo "Starting tests..."
           docker network create rede
           docker-compose up -d
+  
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+     - run: pytest
