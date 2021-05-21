@@ -1,3 +1,4 @@
+from Heartbeat import Heartbeat
 from celery import Celery
 import logging
 from connections import connect_kafka_consumer, connect_kafka_producer, connect_postgres, connect_redis
@@ -23,7 +24,7 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    #sender.add_periodic_task(10, heartbeat.s()) # TODO: alterar para 300
+    sender.add_periodic_task(300, heartbeat.s())
     sender.add_periodic_task(6000, scan.s())
 
 @app.task()
@@ -75,36 +76,143 @@ def scan():
 
 @app.task
 def heartbeat():
-    conn= connect_postgres()
-    producer=connect_kafka_producer()
-    cur = conn.cursor()
-    r=connect_redis()
-    r.set("waiting_workers", str([]))
+    hb = Heartbeat()
+    hb.startup()
+    hb.broadcast()
 
-    QUERY_WORKER = '''SELECT id, status FROM workers_worker'''
+    #ttl
+    time.sleep(30)
 
-    cur.execute(QUERY_WORKER, ())
+    hb.endup()
 
-    workers= cur.fetchall()
-    workers_all=[x[0] for x in workers]
+@app.task
+def main1():
+    global producer
+    global consumer
+    global conn
+    global workers_respond
 
-    if len(workers)>0:
-        producer.send(colector_topics[4], {'to':'all', 'from':'colector'})
-        producer.flush()
+    # temp workers
+    workers_respond=[]
     
-    time.sleep(3) # TODO: alterar para 60
+    #kafka producer
+    producer = connect_kafka_producer()
 
-    waiting_workers=json.loads(r.get("waiting_workers"))
+    #kafka consumer
+    consumer = connect_kafka_consumer()
+    consumer.subscribe(colector_topics)
 
-    workers_del=[x for x in workers_all if x not in waiting_workers]
-    for w in workers_del:
-        QUERY_WORKER_DEL = '''DELETE FROM workers_worker WHERE id=%s'''
-        cur.execute(QUERY_WORKER_DEL, (w,))
-        conn.commit()
-        
-    print("Workers alive: "+str(waiting_workers))
+    #postgres db
+    conn = connect_postgres()
+    logging.warning("connected to postgres")
+    logging.warning(conn)
+
+    producer.send(colector_topics[0],value={"init consumer":"sss"})
+    main_loop()
+
+def main_loop():
+    r=connect_redis()
+    logging.warning(consumer.subscription())
+    for msg in consumer:
+        if msg.topic == colector_topics[0]:
+            if 'CONFIG' in msg.value:
+                #guard configuration on BD and retrive id
+                initial_worker(msg.value,msg.key)
+        elif msg.topic == colector_topics[1]:
+            continue
+        elif msg.topic == colector_topics[2]:
+            if msg.key==b'SCAN':
+                scan_machine(msg)
+            elif msg.key == b'UPDATE':
+                update_worker(msg)
+        elif msg.topic == colector_topics[3]:
+            logging.warning(msg)
+            logs(msg)
+            report(msg)
+        elif msg.topic == colector_topics[4]:
+            if msg.value["to"]=="colector":
+                logging.critical("RECEIVING HEARTBEAT RESPONSE FROM " + msg.value)
+                waiting_workers=json.loads(r.get("waiting_workers"))
+                waiting_workers.append(msg.value["from"])
+                r.set("waiting_workers", str(waiting_workers))
+                
+        else:
+            logging.warning("Message topic: "+ msg.topic + " does not exist" )
+    logging.warning("Closing connection" )
     conn.close()
 
+def initial_worker(value,key):
+    logging.warning("Received a init message")
+
+    #sql query to insert worker
+    QUERY = '''INSERT INTO workers_worker(name,status,failures,created) VALUES(%s,%s,%s,%s) RETURNING id'''
+
+    # create a new cursor
+    cur = conn.cursor()
+    cur.execute(QUERY, ("worker","I","0", str(date.today())))
+
+    # get the generated id back
+    worker_id = cur.fetchone()[0]
+    # commit the changes to the database
+    conn.commit()
+
+    for machine in value['CONFIG']['ADDRESS_LIST']:
+        #See if machine exists
+        QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s or dns= %s'''
+        cur.execute(QUERY, (machine,machine))
+        
+        QUERY_WORKER_MACHINE = '''INSERT INTO machines_machineworker(machine_id,worker_id) VALUES(%s,%s)'''
+        #If not add to db
+
+        machine_id = cur.fetchone()
+        if machine_id is None:
+            QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
+            if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
+                cur.execute(QUERY, (machine,'','2','W','NOW()'))
+            else:
+                cur.execute(QUERY, ('', machine,'2','W','NOW()'))
+            machine_id= cur.fetchone()
+            conn.commit()
+
+        cur.execute(QUERY_WORKER_MACHINE, (machine_id[0],worker_id)) 
+        conn.commit()
+    cur.close()
+    
+    #send id
+    producer.send(colector_topics[0],key=key, value={'STATUS':'200','WORKER_ID':worker_id})
+    producer.flush()
+
+def scan_machine(msg):
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\",periodicity  FROM  machines_machine WHERE ip=%s OR dns=%s'''
+    
+    cur = conn.cursor()
+    cur.execute(QUERY,(msg.value['MACHINE'],msg.value['MACHINE']))
+
+
+    machine= cur.fetchone()
+    logging.warning( machine  )
+    QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+        
+    if machine[4] == 'D':
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+            
+    elif machine[4]=='M':
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+    else:
+        QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+    cur.execute(QUERY_MACHINE, (machine[0],))
+
+    conn.commit()
+    cur.execute(QUERY_WORKER, (machine[0],))
+
+    workers= cur.fetchall()
+    for worker in workers:
+        if machine[1] == '':
+            producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+        else: 
+            producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+    producer.flush()
+    cur.close()
 
 
 
