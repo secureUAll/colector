@@ -146,7 +146,7 @@ class Main():
 
     def logs(self,msg):
         logging.warning("ENTROU NOS LOGS")
-        QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s LIMIT 1), %s)'''
+        QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s or dns=%s LIMIT 1), %s)'''
         cur = self.conn.cursor()
 
         # parameters
@@ -156,7 +156,7 @@ class Main():
         machine_ip=msg.value["MACHINE"]
 
         # insert into log's table
-        cur.execute(QUERY, (dt, path, machine_ip, worker_id))
+        cur.execute(QUERY, (dt, path, machine_ip,machine_ip, worker_id))
         self.conn.commit()
         cur.close()
         

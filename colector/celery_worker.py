@@ -67,7 +67,7 @@ def scan():
             logging.warning(bytes([worker[0]]))
             cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
             conn.commit()
-            if machine[1] != '':
+            if machine[1] == '':
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
