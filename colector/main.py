@@ -1,28 +1,24 @@
-from celery import Task
+from kafka import producer
 from connections import connect_kafka_producer,connect_kafka_consumer,  connect_postgres, connect_redis
 import logging
 import json
 import re
 from datetime import date
 
-class Main(Task):
-
+class Main():
     def __init__(self):
-        colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG', 'HEARTBEAT', 'UPDATE']
+        self.colector_topics=['INIT','SCAN_REQUEST','FRONTEND','LOG', 'HEARTBEAT', 'UPDATE']
         #kafka producer
-        producer = connect_kafka_producer()
+        self.producer = connect_kafka_producer()
 
         #kafka consumer
-        consumer = connect_kafka_consumer()
-        consumer.subscribe(colector_topics)
+        self.consumer = connect_kafka_consumer()
+        self.consumer.subscribe(self.colector_topics)
 
         #postgres db
-        conn = connect_postgres()
+        self.conn = connect_postgres()
         logging.warning("connected to postgres")
-        logging.warning(conn)
-
-        producer.send(colector_topics[0],value={"init consumer":"sss"})
-        
+        logging.warning(self.conn)       
 
     def run(self):
         r=connect_redis()
@@ -72,7 +68,7 @@ class Main(Task):
         for machine in value['CONFIG']['ADDRESS_LIST']:
             #See if machine exists
             QUERY = '''SELECT id FROM  machines_machine WHERE ip = %s or dns= %s'''
-            self.cur.execute(QUERY, (machine,machine))
+            cur.execute(QUERY, (machine,machine))
             
             QUERY_WORKER_MACHINE = '''INSERT INTO machines_machineworker(machine_id,worker_id) VALUES(%s,%s)'''
             #If not add to db
@@ -95,6 +91,56 @@ class Main(Task):
         self.producer.send(self.colector_topics[0],key=key, value={'STATUS':'200','WORKER_ID':worker_id})
         self.producer.flush()
 
+    def scan_machine(self,msg):
+        QUERY = '''SELECT id, ip, dns, \"scanLevel\",periodicity  FROM  machines_machine WHERE ip=%s OR dns=%s'''
         
+        cur = self.conn.cursor()
+        cur.execute(QUERY,(msg.value['MACHINE'],msg.value['MACHINE']))
+
+
+        machine= cur.fetchone()
+        logging.warning( machine  )
+        QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+            
+        if machine[4] == 'D':
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+                
+        elif machine[4]=='M':
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 month\'  WHERE id= %s'''
+        else:
+            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+        cur.execute(QUERY_MACHINE, (machine[0],))
+
+        self.conn.commit()
+        cur.execute(QUERY_WORKER, (machine[0],))
+
+        workers= cur.fetchall()
+        for worker in workers:
+            if machine[1] == '':
+                self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+            else: 
+                self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+        self.producer.flush()
+        cur.close()
+
+    def update_worker(self,msg):
+        logging.warning("UPDATING WORKER")
+        
+        worker_machine_list= []
+        worker_id = msg.value["ID"]
+
+        QUERY_WORKER = '''SELECT mm.ip, mm.dns FROM machines_machineworker as mw INNER JOIN  machines_machine as mm ON mw.machine_id = mm.id WHERE mw.worker_id=%s'''
+        cur = self.conn.cursor()
+        cur.execute(QUERY_WORKER, (worker_id,))
+
+        machines=cur.fetchall()
+        for machine in machines:
+            if machine[0]:
+                worker_machine_list.append(machine[0])
+            else:
+                worker_machine_list.append(machine[1])
+        cur.close()
+        self.producer.send(self.colector_topics[5], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
+        self.producer.flush()
 
     
