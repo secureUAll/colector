@@ -38,7 +38,7 @@ class Main():
                     self.update_worker(msg)
             elif msg.topic == self.colector_topics[3]:
                 #logging.warning(msg)
-                self.logs(msg)
+                #self.logs(msg)
                 self.report(msg)
             elif msg.topic == self.colector_topics[4]:
                 if msg.value["to"]=="colector":

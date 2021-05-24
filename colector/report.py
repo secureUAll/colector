@@ -9,7 +9,7 @@ class Report():
     QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id) VALUES (%s,%s,%s)'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
-    QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s)) RETURNING id"
+    QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
 
     def __init__(self, conn):
         self.conn=conn
