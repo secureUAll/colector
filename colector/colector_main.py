@@ -4,7 +4,7 @@ from connections import connect_kafka_producer,connect_kafka_consumer,  connect_
 import logging
 import json
 import re
-
+from report import Report
 
 class Main():
     def __init__(self):
@@ -38,7 +38,7 @@ class Main():
                     self.update_worker(msg)
             elif msg.topic == self.colector_topics[3]:
                 #logging.warning(msg)
-                #self.logs(msg)
+                self.logs(msg)
                 self.report(msg)
             elif msg.topic == self.colector_topics[4]:
                 if msg.value["to"]=="colector":
@@ -170,6 +170,7 @@ class Main():
         """
     
     def report(self,msg):
-        #chama report
-        from celery_worker import send_email
-        send_email(msg)
+        report=Report(self.conn)
+        report.report(msg)
+        #from celery_worker import send_email
+        #send_email(msg)
