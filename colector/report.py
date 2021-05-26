@@ -39,16 +39,17 @@ class Report():
     def save_general_info(self):
         logging.warning(self.msg)
         result_scan=self.msg.value["RESULTS"]
-        if "address" in result_scan:
-            address_ip= result_scan["address"]["addr"]
-            address_dns= result_scan["address"]["addrname"]
-            self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
-            self.conn.commit()
+        for tool in result_scan:
+            if "address" in result_scan:
+                address_ip= result_scan["address"]["addr"]
+                address_dns= result_scan["address"]["addrname"]
+                self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
+                self.conn.commit()
 
-        if "scan" in result_scan:
-            ports= result_scan["scan"]
-            for p in ports:
-                self.save_port(p,self.cur)
+            if "scan" in result_scan:
+                ports= result_scan["scan"]
+                for p in ports:
+                    self.save_port(p,self.cur)
         
 
     def save_port(self,port,cur):
