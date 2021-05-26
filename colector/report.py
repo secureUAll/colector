@@ -6,7 +6,7 @@ import logging
 
 class Report():
     QUERY_MACHINE = '''SELECT id FROM machines_machine WHERE ip = %s or dns = %s LIMIT 1'''
-    QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id) VALUES (%s,%s,%s)'''
+    QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true)'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
@@ -41,14 +41,12 @@ class Report():
         
         for tool in result_scan:
             if 'address' in tool:
-                logging.warning("ENTREIIIIIIIIII")
                 address_ip= tool["address"]["addr"]
                 address_dns= tool["address"]["addrname"]
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
                 self.conn.commit()
 
             if 'scan' in tool:
-                logging.warning("ENTREIIIIIIIIII")
                 ports= tool["scan"]
                 for p in ports:
                     self.save_port(p,self.cur)
