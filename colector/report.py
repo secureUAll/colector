@@ -41,14 +41,14 @@ class Report():
         
         for tool in result_scan:
             logging.warning(tool)
-            if "address" in result_scan:
-                address_ip= result_scan["address"]["addr"]
-                address_dns= result_scan["address"]["addrname"]
+            if "address" in tool:
+                address_ip= tool["address"]["addr"]
+                address_dns= tool["address"]["addrname"]
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
                 self.conn.commit()
 
             if "scan" in result_scan:
-                ports= result_scan["scan"]
+                ports= tool["scan"]
                 for p in ports:
                     self.save_port(p,self.cur)
         
