@@ -37,9 +37,10 @@ class Report():
 
 
     def save_general_info(self):
-        logging.warning(self.msg)
         result_scan=self.msg.value["RESULTS"]
+        
         for tool in result_scan:
+            logging.warning(tool)
             if "address" in result_scan:
                 address_ip= result_scan["address"]["addr"]
                 address_dns= result_scan["address"]["addrname"]
