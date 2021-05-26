@@ -2,7 +2,7 @@
 """
 Disable Scan in some ports
 """
-
+import logging
 
 class Report():
     QUERY_MACHINE = '''SELECT id FROM machines_machine WHERE ip = %s or dns = %s LIMIT 1'''
@@ -24,7 +24,7 @@ class Report():
 
         self.initialize_ids()
         self.save_general_info()
-        cur.close()
+        self.cur.close()
 
 
     def initialize_ids(self):
@@ -37,16 +37,18 @@ class Report():
 
 
     def save_general_info(self):
+        logging.warning(self.msg)
         result_scan=self.msg.value["RESULTS"]
-        address_ip= result_scan["address"]["addr"]
-        address_dns= result_scan["address"]["addrname"]
+        if "address" in result_scan:
+            address_ip= result_scan["address"]["addr"]
+            address_dns= result_scan["address"]["addrname"]
+            self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
+            self.conn.commit()
 
-        self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
-        self.conn.commit()
-
-        ports= result_scan["scan"]
-        for p in ports:
-            self.save_port(p,self.cur)
+        if "scan" in result_scan:
+            ports= result_scan["scan"]
+            for p in ports:
+                self.save_port(p,self.cur)
         
 
     def save_port(self,port,cur):
