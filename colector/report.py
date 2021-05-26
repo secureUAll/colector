@@ -6,8 +6,8 @@ import logging
 
 class Report():
     QUERY_MACHINE = '''SELECT id FROM machines_machine WHERE ip = %s or dns = %s LIMIT 1'''
-    QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true)'''
-    QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) RETURNING id'''
+    QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true) ON CONFLICT  DO NOTHING'''
+    QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
 
@@ -17,6 +17,7 @@ class Report():
         self.msg=None
         self.scan_id=None
         self.machine_id=None
+
 
     def report(self,msg):
         self.msg= msg
@@ -41,12 +42,14 @@ class Report():
         
         for tool in result_scan:
             if 'address' in tool:
+                logging.warning("adding ip: " + tool["address"]["addr"] + "adding dns: " + tool["address"]["addrname"] )
                 address_ip= tool["address"]["addr"]
                 address_dns= tool["address"]["addrname"]
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
                 self.conn.commit()
 
             if 'scan' in tool:
+                logging.warning("adding ports")
                 ports= tool["scan"]
                 for p in ports:
                     self.save_port(p,self.cur)
@@ -56,6 +59,8 @@ class Report():
         port_id = port["portid"]
         service_name= port["service"]["connection"]
         service_version= port["service"]["product"] + port["service"]["version"]
+
+        logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
 
         self.cur.execute(self.QUERY_MACHINE_SERVICE, (service_name,service_version))
         service_id= cur.fetchone()[0]
