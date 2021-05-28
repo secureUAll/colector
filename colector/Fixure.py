@@ -6,6 +6,7 @@ import json
 class Fixure():
     def __init__(self, message):
         self.message = message
+        self.retorno = {}
 
     def fix(self):
         outputs = self.message["output"]
@@ -15,14 +16,14 @@ class Fixure():
 
         self.rel_cve_suggestion=json.loads(json_text)
 
-        retorno={}
+        self.retorno={}
         for out in outputs:
             palavras = out.split()
             if len(palavras) > 0 and "CVE-" in palavras[0]:
                 cve = palavras[0].replace("[", "").replace("]", "")
-                retorno[cve]=self.getFixes(cve)
+                self.retorno[cve]=self.getFixes(cve)
 
-        return retorno
+        return self.retorno
 
     def getFixes(self, cve):
         if cve in self.rel_cve_suggestion:
@@ -163,6 +164,12 @@ class Fixure():
         f = open("cve_suggestion.json", "wb")
         f.write(formato_json.encode("latin"))
 
+    def printCode(self):
+        # just for test purposes
+        code = self.retorno['CVE-2009-2874']['code_exmaples'][0]['code_bad'].replace("/tab/", "\t").replace("/newline/","\n")
+        print(f'{code}')
+        pass
+
 
 f = Fixure({"output": [
     "VulDB - https://vuldb.com:",
@@ -176,5 +183,5 @@ f = Fixure({"output": [
 ]})
 
 #f.readCWE("cwec_v4.4.xml")
-
-print(f.fix())
+f.fix()
+f.printCode()
