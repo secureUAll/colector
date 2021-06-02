@@ -10,7 +10,7 @@ class Report():
     QUERY_MACHINE = '''SELECT id FROM machines_machine WHERE ip = %s or dns = %s LIMIT 1'''
     QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true) ON CONFLICT  DO NOTHING'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
-    QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
+    QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s, os=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
 
     def __init__(self, conn):
@@ -70,7 +70,8 @@ class Report():
 
         address_ip=Counter(tools_general_data["address_ip"]).most_common(1)[0][0]
         address_dns=Counter(tools_general_data["address_name"]).most_common(1)[0][0]
-        self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
+        os=Counter(tools_general_data["os"]).most_common(1)[0][0]
+        self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,os,self.machine_id))
         self.conn.commit()
 
         for k in tools_general_data:
@@ -87,7 +88,7 @@ class Report():
 
     def get_tools_general_data(self):
         result_scan=self.msg.value["RESULTS"]
-        tools_general_data= {"address_ip":[],"address_name":[]}
+        tools_general_data= {"address_ip":[],"address_name":[], "os":[]}
 
         for tool in result_scan:
             if 'address' in tool:
@@ -106,6 +107,8 @@ class Report():
                         tools_general_data[port_id]={"service_name":[], "service_version":[]}
                     tools_general_data[port_id]["service_name"].append(service_name)
                     tools_general_data[port_id]["service_version"].append(service_version)
+                    if "os" in p and p["os"] is not None:
+                        tools_general_data["os"].append()
                     
 
         logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
