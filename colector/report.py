@@ -36,7 +36,7 @@ class Report():
         self.cur.execute(self.QUERY_MACHINE,(self.msg.value["MACHINE"],self.msg.value["MACHINE"]))
         self.machine_id= self.cur.fetchone()[0]
 
-        status= self.check_machine_satus()
+        status= self.check_machine_status()
         self.cur.execute(self.QUERY_SAVE_SCAN,(status,self.machine_id ,int.from_bytes(self.msg.key,"big")))
         self.scan_id= self.cur.fetchone()[0]
         self.conn.commit()
@@ -55,7 +55,7 @@ class Report():
                 if 'status' not in tool:
                     status="UP"
             elif tool['TOOL']=="nmap":
-                 if tool['host']['up']=='1':
+                if tool['run_stats']['host']['up']=='1':
                     status="UP"
             elif tool['TOOL']=="vulscan":
                 if tool['state']=='up':
