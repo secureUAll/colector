@@ -42,23 +42,23 @@ class Report():
         
         for tool in result_scan:
             if 'address' in tool:
-                logging.warning("adding ip: " + tool["address"]["addr"] + "adding dns: " + tool["address"]["addrname"] )
-                address_ip= tool["address"]["addr"]
-                address_dns= tool["address"]["addrname"]
+                logging.warning("adding ip: " + tool["address"]["address_ip"] + "adding dns: " + tool["address"]["address_name"] )
+                address_ip= tool["address"]["address_ip"]
+                address_dns= tool["address"]["address_name"]
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
                 self.conn.commit()
 
-            if 'scan' in tool:
+            if 'ports' in tool:
                 logging.warning("adding ports")
-                ports= tool["scan"]
+                ports= tool["ports"]
                 for p in ports:
                     self.save_port(p,self.cur)
         
 
     def save_port(self,port,cur):
-        port_id = port["portid"]
-        service_name= port["service"]["connection"]
-        service_version= port["service"]["product"] + port["service"]["version"]
+        port_id = port["id"]
+        service_name= port["name"]
+        service_version= port["product"] + port["version"]
 
         logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
 
