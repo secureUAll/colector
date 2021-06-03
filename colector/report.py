@@ -70,15 +70,15 @@ class Report():
         tools_general_data= self.get_tools_general_data()   
 
         address_ip=Counter(tools_general_data["address_ip"]).most_common(1)[0][0] if len(tools_general_data["address_ip"]) > 0 else ''
-        address_dns=Counter(tools_general_data["address_name"]).most_common(1)[0][0] if len(tools_general_data["address_dns"]) > 0 else ''
+        address_dns=Counter(tools_general_data["address_name"]).most_common(1)[0][0] if len(tools_general_data["address_name"]) > 0 else ''
         os=Counter(tools_general_data["os"]).most_common(1)[0][0] if len(tools_general_data["os"]) > 0 else ''
         self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,os,self.machine_id))
         self.conn.commit()
 
-        for k in tools_general_data:
-            if k!= "address_ip" or k!= "address_name":
-                service_name=Counter(k[service_name]).most_common(1)[0][0]
-                service_version=Counter(k[service_version]).most_common(1)[0][0]
+        for k in tools_general_data.keys():
+            if k!= "address_ip" and k!="os"  and  k!= "address_name":
+                service_name=Counter(tools_general_data[k]["service_name"]).most_common(1)[0][0] 
+                service_version=Counter(tools_general_data[k]["service_version"]).most_common(1)[0][0] if len(tools_general_data[k]["service_version"])>0 else ''
                 self.cur.execute(self.QUERY_MACHINE_SERVICE, (service_name,service_version))
                 service_id= self.cur.fetchone()[0]
                 self.conn.commit()
@@ -105,13 +105,13 @@ class Report():
                 for p in ports:
                     port_id = str(p["id"])
                     service_name= p["name"]
-                    service_version= p["product"] + p["version"]
+                    service_version= p["product"] + p["version"] if p["product"] is not None else None
                     if port_id not in tools_general_data:
                         tools_general_data[port_id]={"service_name":[], "service_version":[]}
                     tools_general_data[port_id]["service_name"].append(service_name)
-                    tools_general_data[port_id]["service_version"].append(service_version)
+                    tools_general_data[port_id]["service_version"].append(service_version) if service_version is not None else None
                     if "os" in p and p["os"] is not None:
-                        tools_general_data["os"].append()
+                        tools_general_data["os"].append(p["os"])
                     
 
         logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
