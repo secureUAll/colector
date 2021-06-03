@@ -1,6 +1,9 @@
 from typing import Counter
 import xml.etree.ElementTree as ET
 import json
+from bs4 import BeautifulSoup
+from urllib.request import Request, urlopen
+import re
 
 
 class Fixure():
@@ -36,9 +39,9 @@ class Fixure():
             tabs = ""
             body = ""
             for x in range(0, depth):
-                tabs += "/tab/"
+                tabs += "<div style='padding-left: 20px;'></div>"
             if root.tag == "{http://www.w3.org/1999/xhtml}br":
-                body = "/newline/"
+                body = "<br>"
             else:
                 # body=ET.tostring(root).decode("latin")
                 if root.text is not None:
@@ -46,7 +49,7 @@ class Fixure():
                 else:
                     body=""
             return tabs+body
-
+        
         retorno = ""
 
         # CHECK IF ALL INDIVIDUAL ELEMENTS ARE <BR>
@@ -58,11 +61,12 @@ class Fixure():
         if child_no == br_no:
             for x in root:
                 retorno += ET.tostring(x).decode("latin").replace(
-                    "<html:br xmlns:html=\"http://www.w3.org/1999/xhtml\" />", "/newline/").replace("\n                  ", "")
+                    "<html:br xmlns:html=\"http://www.w3.org/1999/xhtml\" />", "<br>").replace("\n", "").replace("  ", "")
         else:
             for child in root:
                 retorno += self.throughCode(child, depth+1)
-
+        
+        #retorno=ET.tostring(root, encoding='unicode')
         return retorno
 
 
@@ -74,6 +78,7 @@ class Fixure():
             if child.tag == '{http://cwe.mitre.org/cwe-6}Weaknesses':
                 weeknesses = child.findall("{http://cwe.mitre.org/cwe-6}Weakness")
                 for wk in weeknesses:
+                    print(wk.attrib["ID"])
                     # MITIGATIONS
                     temp_mitigations = []
                     pm = wk.find("{http://cwe.mitre.org/cwe-6}Potential_Mitigations")
@@ -154,21 +159,44 @@ class Fixure():
                     if observed_examples is not None:
                         for oe in observed_examples.findall("{http://cwe.mitre.org/cwe-6}Observed_Example"):
                             cve = oe.find("{http://cwe.mitre.org/cwe-6}Reference").text
+                            
                             if cve in rel_cve_fix:
                                 rel_cve_fix[cve]["mitigations"] += [x for x in temp_mitigations if all([x["description"]!=y["description"] and x["strategy"]!=y["strategy"] for y in rel_cve_fix[cve]["mitigations"]])]
                                 rel_cve_fix[cve]["code_exmaples"] += [x for x in temp_demonstratice_examples if all([x["title"]!=y["title"] for y in rel_cve_fix[cve]["code_exmaples"]])]
                             else:
                                 rel_cve_fix[cve] = {
-                                    "mitigations": temp_mitigations, "code_exmaples": temp_demonstratice_examples}
+                                    "cvss":self.getCVSS(cve),"mitigations": temp_mitigations, "code_exmaples": temp_demonstratice_examples}
         formato_json = json.dumps(rel_cve_fix)
         f = open("cve_suggestion.json", "wb")
         f.write(formato_json.encode("latin"))
+        f.close()
 
     def printCode(self):
         # just for test purposes
         code = self.retorno['CVE-2009-2874']['code_exmaples'][0]['code_bad'].replace("/tab/", "\t").replace("/newline/","\n")
         print(f'{code}')
         pass
+
+    def getCVSS(self, cve):
+        req = Request("https://www.cvedetails.com/cve/"+cve+"/", headers={'User-Agent': 'Mozilla/5.0'})
+        fp = urlopen(req)
+   
+        mybytes = fp.read()
+
+        html = mybytes.decode("utf8")
+        fp.close()
+
+        soup=BeautifulSoup(html, "html.parser")
+        l=soup.find_all("div", class_="cvssbox")
+
+        if len(l)==0:
+            cvss='-'
+        else:
+            div_cvss=l[0]
+            cvss=re.findall(r">.*<", str(div_cvss))[0].replace("<","").replace(">", "")
+        
+        return cvss
+
 
 
 f = Fixure({"output": [
@@ -183,5 +211,7 @@ f = Fixure({"output": [
 ]})
 
 #f.readCWE("cwec_v4.4.xml")
+f.readCWE()
 f.fix()
-f.printCode()
+#f.printCode()
+#f.getCVSS("CVE-2014-3852")
