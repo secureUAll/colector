@@ -210,8 +210,8 @@ f = Fixure({"output": [
     ""
 ]})
 
-#f.readCWE("cwec_v4.4.xml")
-f.readCWE()
+f.readCWE("cwec_v4.4.xml")
+#f.readCWE()
 f.fix()
 #f.printCode()
 #f.getCVSS("CVE-2014-3852")
