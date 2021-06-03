@@ -32,9 +32,9 @@ class Report():
         if success_scan:
             logging.warning(self.msg.value["RESULTS"] )
             self.save_general_info()
-            self.save_vulnerabilities_info()
+            email_info =self.save_vulnerabilities_info()
         self.cur.close()
-
+        return email_info
 
     def initialize_ids(self):
         self.cur.execute(self.QUERY_MACHINE,(self.msg.value["MACHINE"],self.msg.value["MACHINE"]))
@@ -61,7 +61,7 @@ class Report():
             elif tool['TOOL']=="nmap":
                 if tool['run_stats']['host']['up']=='1':
                     status="UP"
-            elif tool['TOOL']=="vulscan":
+            elif tool['TOOL']=="vulscan" or tool['TOOL']=="zap":
                 if tool['state']=='up':
                     status="UP"
         return status
@@ -78,6 +78,13 @@ class Report():
                 for vuln in tool['scan']:
                     vulns_found.append({"location":vuln["url"], "desc":vuln["message"]})
                     num_vulns_no_risk +=1
+            if tool['TOOL']=="zap":
+                for p in tool["ports"]:
+                    for a in p.get("alerts",[]):
+                        vulns_found.append({"location":a["instances"], "desc":a["alert"], "solution": a["solution"].replace("<p>","")})
+                        num_vulns_risk+=1
+                        avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
+
 
         return num_vulns_no_risk,avg_risk,vulns_found
 
@@ -103,7 +110,7 @@ class Report():
             self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
         self.conn.commit()
         
-
+        return ""
 
     def save_general_info(self):     
         tools_general_data= self.get_tools_general_data()   
@@ -142,15 +149,20 @@ class Report():
                 logging.warning("adding ports")
                 ports= tool["ports"]
                 for p in ports:
-                    port_id = str(p["id"])
-                    service_name= p["name"]
-                    service_version= p["product"] + p["version"] if p["product"] is not None else None
-                    if port_id not in tools_general_data:
-                        tools_general_data[port_id]={"service_name":[], "service_version":[]}
-                    tools_general_data[port_id]["service_name"].append(service_name)
-                    tools_general_data[port_id]["service_version"].append(service_version) if service_version is not None else None
-                    if "os" in p and p["os"] is not None:
-                        tools_general_data["os"].append(p["os"])
+                    if tool["TOOL"] == "zap":
+                        port_id = str(p["port"])
+                        if port_id not in tools_general_data:
+                            tools_general_data[port_id]={"service_name":[], "service_version":[]}
+                    else:
+                        port_id = str(p["id"])
+                        if port_id not in tools_general_data:
+                            tools_general_data[port_id]={"service_name":[], "service_version":[]}
+                        service_name= p["name"]
+                        service_version= p["product"] + p["version"] if p["product"] is not None else None
+                        tools_general_data[port_id]["service_name"].append(service_name)
+                        tools_general_data[port_id]["service_version"].append(service_version) if service_version is not None else None
+                        if "os" in p and p["os"] is not None:
+                            tools_general_data["os"].append(p["os"])
                     
 
         logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
