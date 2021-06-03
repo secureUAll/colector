@@ -12,6 +12,7 @@ class Report():
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s, os=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
+    QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,machine_id,scan_id) VALUES (%s, %s, %s, %s, Not Fixed, %s, %s)"
 
     def __init__(self, conn):
         self.conn=conn
@@ -36,7 +37,7 @@ class Report():
         self.cur.execute(self.QUERY_MACHINE,(self.msg.value["MACHINE"],self.msg.value["MACHINE"]))
         self.machine_id= self.cur.fetchone()[0]
 
-        status= self.check_machine_satus()
+        status= self.check_machine_status()
         self.cur.execute(self.QUERY_SAVE_SCAN,(status,self.machine_id ,int.from_bytes(self.msg.key,"big")))
         self.scan_id= self.cur.fetchone()[0]
         self.conn.commit()
@@ -55,7 +56,7 @@ class Report():
                 if 'status' not in tool:
                     status="UP"
             elif tool['TOOL']=="nmap":
-                 if tool['host']['up']=='1':
+                if tool['run_stats']['host']['up']=='1':
                     status="UP"
             elif tool['TOOL']=="vulscan":
                 if tool['state']=='up':
@@ -66,11 +67,11 @@ class Report():
         pass
 
     def save_general_info(self):     
-        tools_general_data= self.get_tools_general_data()        
+        tools_general_data= self.get_tools_general_data()   
 
-        address_ip=Counter(tools_general_data["address_ip"]).most_common(1)[0][0]
-        address_dns=Counter(tools_general_data["address_name"]).most_common(1)[0][0]
-        os=Counter(tools_general_data["os"]).most_common(1)[0][0]
+        address_ip=Counter(tools_general_data["address_ip"]).most_common(1)[0][0] if len(tools_general_data["address_ip"]) > 0 else ''
+        address_dns=Counter(tools_general_data["address_name"]).most_common(1)[0][0] if len(tools_general_data["address_dns"]) > 0 else ''
+        os=Counter(tools_general_data["os"]).most_common(1)[0][0] if len(tools_general_data["os"]) > 0 else ''
         self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,os,self.machine_id))
         self.conn.commit()
 
@@ -92,9 +93,11 @@ class Report():
 
         for tool in result_scan:
             if 'address' in tool:
-                logging.warning("adding ip: " + tool["address"]["address_ip"] + "adding dns: " + tool["address"]["address_name"] )
-                tools_general_data["address_ip"].append(tool["address"]["address_ip"])
-                tools_general_data["address_name"].append(tool["address"]["address_name"])
+                logging.warning("adding ip: " + str(tool["address"]["address_ip"]) + "adding dns: " + str(tool["address"]["address_name"]) )
+                if tool["address"]["address_ip"] is not None:
+                    tools_general_data["address_ip"].append(tool["address"]["address_ip"])
+                if tool["address"]["address_name"] is not None:
+                    tools_general_data["address_name"].append(tool["address"]["address_name"])
 
             if 'ports' in tool:
                 logging.warning("adding ports")
