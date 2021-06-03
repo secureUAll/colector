@@ -3,6 +3,7 @@ from collections import Counter
 #TODO
 """
 Disable Scan in some ports
+Adjust metrics
 """
 import logging
 
@@ -11,6 +12,7 @@ class Report():
     QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true) ON CONFLICT  DO NOTHING'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s, os=%s WHERE id=%s'''
+    QUERY_UPDATE_RISK = '''UPDATE  machines_machine SET risk=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
     QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,machine_id,scan_id) VALUES (%s, %s, %s, %s, Not Fixed, %s, %s)"
 
@@ -28,6 +30,7 @@ class Report():
 
         success_scan =self.initialize_ids()
         if success_scan:
+            logging.warning(self.msg.value["RESULTS"] )
             self.save_general_info()
             self.save_vulnerabilities_info()
         self.cur.close()
@@ -63,8 +66,44 @@ class Report():
                     status="UP"
         return status
 
+    def get_tools_vulnerabilities_info(self):
+        num_vulns_no_risk=0
+        num_vulns_risk=0
+        avg_risk=0
+        vulns_found=[]
+
+        result_scan=self.msg.value["RESULTS"]
+        for tool in result_scan:
+            if tool['TOOL']=="nikto":
+                for vuln in tool['scan']:
+                    vulns_found.append({"location":vuln["url"], "desc":vuln["message"]})
+                    num_vulns_no_risk +=1
+
+        return num_vulns_no_risk,avg_risk,vulns_found
+
     def save_vulnerabilities_info(self):
-        pass
+        num_vulns_no_risk,avg_risk, vulns_found= self.get_tools_vulnerabilities_info()
+
+        for v in vulns_found:
+            #risk,type,description,location,status,machine_id,scan_id
+            if "cve" in v:
+                pass
+            else:
+                self.cur.execute(self.QUERY_VULNERABILITY,('','', v["desc"], v["location"],self.machine_id, self.scan_id))
+        
+        if avg_risk<=2 and num_vulns_no_risk<5:
+            self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
+        elif avg_risk<=4 and num_vulns_no_risk<10:
+            self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
+        elif avg_risk<=6 and num_vulns_no_risk<20:
+            self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
+        elif avg_risk<=8 and num_vulns_no_risk<50:
+            self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
+        else:
+            self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
+        self.conn.commit()
+        
+
 
     def save_general_info(self):     
         tools_general_data= self.get_tools_general_data()   
