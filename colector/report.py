@@ -76,7 +76,7 @@ class Report():
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"location":self.sanitize(a["instances"]), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
+                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(a["instances"]), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
                         num_vulns_risk+=1
                         avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
 
@@ -91,7 +91,10 @@ class Report():
             if "cve" in v:
                 pass
             else:
-                self.cur.execute(self.QUERY_VULNERABILITY,('','', v["desc"], v["location"],self.machine_id, self.scan_id))
+                if "risk" in v:
+                    self.cur.execute(self.QUERY_VULNERABILITY,(v["risk"],'', v["desc"], v["location"],self.machine_id, self.scan_id))
+                else:
+                    self.cur.execute(self.QUERY_VULNERABILITY,(0,'', v["desc"], v["location"],self.machine_id, self.scan_id))
         
         if avg_risk<=2 and num_vulns_no_risk<5:
             self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
