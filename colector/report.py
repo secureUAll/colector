@@ -69,14 +69,14 @@ class Report():
 
         result_scan=self.msg.value["RESULTS"]
         for tool in result_scan:
-            if tool['TOOL']=="nikto":
+            if tool['TOOL']=="nikto" and "scan" in tool:
                 for vuln in tool['scan']:
-                    vulns_found.append({"location":vuln["url"], "desc":vuln["message"]})
+                    vulns_found.append({"location":self.sanitize(vuln["url"]), "desc":self.sanitize(vuln["message"])})
                     num_vulns_no_risk +=1
-            if tool['TOOL']=="zap":
+            if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"location":a["instances"], "desc":a["alert"], "solution": a["solution"].replace("<p>","")})
+                        vulns_found.append({"location":self.sanitize(a["instances"]), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
                         num_vulns_risk+=1
                         avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
 
@@ -160,3 +160,6 @@ class Report():
                             tools_general_data["os"].append(p["os"])
                         logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
         return tools_general_data
+
+    def sanitize(self, text):
+        return text.replace("'","''")
