@@ -14,7 +14,7 @@ class Report():
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s, os=%s WHERE id=%s'''
     QUERY_UPDATE_RISK = '''UPDATE  machines_machine SET risk=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
-    QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,machine_id,scan_id) VALUES (%s, %s, %s, %s, Not Fixed, %s, %s)"
+    QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,machine_id,scan_id) VALUES (%s, %s, %s, %s, \'Not Fixed\', %s, %s)"
 
     def __init__(self, conn):
         self.conn=conn
@@ -85,7 +85,7 @@ class Report():
 
     def save_vulnerabilities_info(self):
         num_vulns_no_risk,avg_risk, vulns_found= self.get_tools_vulnerabilities_info()
-
+        logging.warning(vulns_found)
         for v in vulns_found:
             #risk,type,description,location,status,machine_id,scan_id
             if "cve" in v:
