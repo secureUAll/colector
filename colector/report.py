@@ -55,15 +55,10 @@ class Report():
 
         result_scan=self.msg.value["RESULTS"]
         for tool in result_scan:
-            if tool['TOOL']=="nikto":
-                if 'status' not in tool:
-                    status="UP"
-            elif tool['TOOL']=="nmap":
-                if tool['run_stats']['host']['up']=='1':
-                    status="UP"
-            elif tool['TOOL']=="vulscan" or tool['TOOL']=="zap":
-                if tool['state']=='up':
-                    status="UP"
+            if (tool['TOOL']=="nikto" and 'status' not in tool) or (
+                tool['TOOL']=="nmap" and tool['run_stats']['host']['up']=='1') or (
+                tool['TOOL']=="vulscan" or tool['TOOL']=="zap" and  tool['state']=='up'):
+                status="UP"
         return status
 
     def get_tools_vulnerabilities_info(self):
@@ -122,9 +117,9 @@ class Report():
         self.conn.commit()
 
         for k in tools_general_data.keys():
-            if k!= "address_ip" and k!="os"  and  k!= "address_name":
-                service_name=Counter(tools_general_data[k]["service_name"]).most_common(1)[0][0] 
-                service_version=Counter(tools_general_data[k]["service_version"]).most_common(1)[0][0] if len(tools_general_data[k]["service_version"])>0 else ''
+            if k!= "address_ip" and k!="os"  and  k!= "address_name" and tools_general_data[k]["service_name"] and tools_general_data[k]["service_version"]:
+                service_name=Counter(tools_general_data[k]["service_name"]).most_common(1)[0][0] if len(tools_general_data[k]["service_version"])>0 else 'NOT DETECTED'
+                service_version=Counter(tools_general_data[k]["service_version"]).most_common(1)[0][0] if len(tools_general_data[k]["service_version"])>0 else 'NOT DETECTED'
                 self.cur.execute(self.QUERY_MACHINE_SERVICE, (service_name,service_version))
                 service_id= self.cur.fetchone()[0]
                 self.conn.commit()
@@ -163,7 +158,5 @@ class Report():
                         tools_general_data[port_id]["service_version"].append(service_version) if service_version is not None else None
                         if "os" in p and p["os"] is not None:
                             tools_general_data["os"].append(p["os"])
-                    
-
-        logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
+                        logging.warning("port id: " + str(port_id) + " service name: " + service_name + " service version: " +service_version )
         return tools_general_data
