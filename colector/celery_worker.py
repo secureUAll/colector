@@ -37,7 +37,7 @@ def scan():
     producer=connect_kafka_producer()
 
 
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" <= NOW()'''
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" <= NOW()'''#and status=Active
 
     cur = conn.cursor()
     cur.execute(QUERY)
@@ -65,9 +65,9 @@ def scan():
             cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
             conn.commit()
             if machine[1] == '':
-                producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+                producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0],"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
-                producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+                producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0],"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
 
     producer.flush()
     conn.close()
