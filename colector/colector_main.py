@@ -4,7 +4,7 @@ from connections import connect_kafka_producer,connect_kafka_consumer,  connect_
 import logging
 import json
 import re
-
+from report import Report
 
 class Main():
     def __init__(self):
@@ -170,6 +170,7 @@ class Main():
         """
     
     def report(self,msg):
-        #chama report
-        from celery_worker import send_email
-        send_email(msg)
+        report=Report(self.conn)
+        email_info =report.report(msg)
+        #from celery_worker import send_email
+        #send_email(msg)
