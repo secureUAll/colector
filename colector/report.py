@@ -12,7 +12,7 @@ class Report():
     QUERY_MACHINE_ACTIVE = '''SELECT active FROM machines_machine WHERE id=%s'''
     QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true) ON CONFLICT  DO NOTHING'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
-    QUERY_NEW_MACHINE = '''INSERT INTO machines_machine(ip,dns) VALUES(%s,%s) RETURNING id'''
+    QUERY_NEW_MACHINE = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
     QUERY_UPDATE_OS = '''UPDATE machines_machine SET os=%s WHERE id=%s'''
     QUERY_UPDATE_STATUS = '''UPDATE machines_machine SET active=%s WHERE id=%s'''
@@ -43,7 +43,7 @@ class Report():
         return email_info
 
     def initialize_ids(self):
-        self.machine_id= self.msg.values["MACHINE_ID"]
+        self.machine_id= self.msg.value["MACHINE_ID"]
 
         status= self.check_machine_status()
 
@@ -71,7 +71,7 @@ class Report():
         return status
 
     def check_machine_active(self):
-        self.cur.execute(self.QUERY_MACHINE_ACTIVE, (self.machine_id))
+        self.cur.execute(self.QUERY_MACHINE_ACTIVE, (self.machine_id,))
         self.active= self.cur.fetchone()[0]
 
 
@@ -195,7 +195,7 @@ class Report():
             self.conn.commit()
 
             #create new machine
-            self.cur.execute(self.QUERY_NEW_MACHINE, (address_ip, address_dns))
+            self.cur.execute(self.QUERY_NEW_MACHINE, (address_ip, address_dns, '2','W','NOW()'))
             self.machine_id = self.cur.fetchone()[0]
             self.conn.commit()
         

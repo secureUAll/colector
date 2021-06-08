@@ -76,11 +76,11 @@ class Main():
 
             machine_id = cur.fetchone()
             if machine_id is None:
-                QUERY = '''INSERT INTO machines_machine(ip,dns) VALUES(%s,%s) RETURNING id'''
+                QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
                 if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
-                    cur.execute(QUERY, (machine,''))
+                    cur.execute(QUERY, (machine,'','2','W','NOW()'))
                 else:
-                    cur.execute(QUERY, ('', machine))
+                    cur.execute(QUERY, ('', machine, '2','W', 'NOW()'))
                 machine_id= cur.fetchone()
                 self.conn.commit()
 
