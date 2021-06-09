@@ -1,4 +1,5 @@
 from collections import Counter
+import logging
 
 #TODO
 """
@@ -33,6 +34,8 @@ class Report():
     def report(self,msg):
         self.msg= msg
         self.cur= self.conn.cursor()
+        
+        logging.warning(msg)
 
         success_scan =self.initialize_ids()
         if success_scan:
@@ -48,7 +51,7 @@ class Report():
         status= self.check_machine_status()
 
         #in case of multiple workers scannig an inactive machine
-        self.check_machine_active()
+        #self.check_machine_active()
 
         self.cur.execute(self.QUERY_SAVE_SCAN,(status,self.machine_id ,int.from_bytes(self.msg.key,"big")))
         self.scan_id= self.cur.fetchone()[0]

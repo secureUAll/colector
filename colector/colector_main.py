@@ -141,7 +141,7 @@ class Main():
             else:
                 worker_machine_list.append(machine[1])
         cur.close()
-        self.producer.send(self.colector_topics[5], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
+        self.producer.send(self.colector_topics[5], key=bytes([worker_id]), value={"ADDRESS_LIST": worker_machine_list})
         self.producer.flush()
 
     def logs(self,msg):
