@@ -69,7 +69,8 @@ class Report():
         for tool in result_scan:
             if (tool['TOOL']=="nikto" and 'status' not in tool) or (
                 tool['TOOL']=="nmap" and tool['run_stats']['host']['up']=='1') or (
-                tool['TOOL']=="vulscan" or tool['TOOL']=="zap" and  tool['state']=='up'):
+                tool['TOOL']=="vulscan" or tool['TOOL']=="zap" and  tool['state']=='up') or (
+                tool['TOOL']=="nmap_vulscan" and tool['status']=="UP"):
                 status="UP"
         return status
 
@@ -177,6 +178,11 @@ class Report():
                         port_id = str(p["port"])
                         if port_id not in tools_general_data:
                             tools_general_data[port_id]={"service_name":[], "service_version":[]}
+                    elif tool["TOOL"] == "nmap_malware":
+                        port_id= str(p["port"])
+                        if port_id not in tools_general_data:
+                            tools_general_data[port_id]={"service_name":[], "service_version":[], "malware": p["malware"], "risk": p["potencial"]}
+
                     else:
                         port_id = str(p["id"])
                         if port_id not in tools_general_data:
