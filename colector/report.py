@@ -94,7 +94,7 @@ class Report():
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(a["instances"]), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
+                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(''.join(a["instances"])), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
                         num_vulns_risk+=1
                         avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
 
@@ -181,7 +181,7 @@ class Report():
                     elif tool["TOOL"] == "nmap_malware":
                         port_id= str(p["port"])
                         if port_id not in tools_general_data:
-                            tools_general_data[port_id]={"service_name":[], "service_version":[], "malware": p["malware"], "risk": p["potencial"]}
+                            tools_general_data[port_id]={"service_name":[], "service_version":[], "malware": p["malware"], "risk": p["risk"]}
 
                     else:
                         port_id = str(p["id"])
