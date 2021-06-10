@@ -13,7 +13,7 @@ class Report():
     QUERY_MACHINE_ACTIVE = '''SELECT active FROM machines_machine WHERE id=%s'''
     QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true) ON CONFLICT  DO NOTHING'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
-    QUERY_NEW_MACHINE = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
+    QUERY_NEW_MACHINE = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\", active, created, updated) VALUES(%s,%s,'2','W',NOW(), false, NOW(), NOW() ) RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
     QUERY_UPDATE_OS = '''UPDATE machines_machine SET os=%s WHERE id=%s'''
     QUERY_UPDATE_STATUS = '''UPDATE machines_machine SET active=%s WHERE id=%s'''
@@ -94,7 +94,7 @@ class Report():
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(''.join(a["instances"])), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
+                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
                         num_vulns_risk+=1
                         avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
 
@@ -204,7 +204,7 @@ class Report():
             self.conn.commit()
 
             #create new machine
-            self.cur.execute(self.QUERY_NEW_MACHINE, (address_ip, address_dns, '2','W','NOW()'))
+            self.cur.execute(self.QUERY_NEW_MACHINE, (address_ip, address_dns))
             self.machine_id = self.cur.fetchone()[0]
             self.conn.commit()
         
