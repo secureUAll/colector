@@ -1,4 +1,5 @@
 from collections import Counter
+import logging
 
 #TODO
 """
@@ -8,14 +9,18 @@ Adjust metrics
 import logging
 
 class Report():
-    QUERY_MACHINE = '''SELECT id FROM machines_machine WHERE ip = %s or dns = %s LIMIT 1'''
+    QUERY_MACHINE = '''SELECT id, ip, dns FROM machines_machine WHERE id=%s'''
+    QUERY_MACHINE_ACTIVE = '''SELECT active FROM machines_machine WHERE id=%s'''
     QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true) ON CONFLICT  DO NOTHING'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
+    QUERY_NEW_MACHINE = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\", active, created, updated) VALUES(%s,%s,'2','W',NOW(), true, NOW(), NOW() ) RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
     QUERY_UPDATE_OS = '''UPDATE machines_machine SET os=%s WHERE id=%s'''
+    QUERY_UPDATE_STATUS = '''UPDATE machines_machine SET active=%s WHERE id=%s'''
     QUERY_UPDATE_RISK = '''UPDATE  machines_machine SET risk=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
-    QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,machine_id,scan_id) VALUES (%s, %s, %s, %s, \'Not Fixed\', %s, %s)"
+    QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,created, updated,machine_id,scan_id) VALUES (%s, %s, %s, %s, \'Not Fixed\',NOW(),NOW(),%s, %s)"
+
 
     def __init__(self, conn):
         self.conn=conn
@@ -23,11 +28,14 @@ class Report():
         self.msg=None
         self.scan_id=None
         self.machine_id=None
+        self.active=None
 
 
     def report(self,msg):
         self.msg= msg
         self.cur= self.conn.cursor()
+        
+        logging.warning(msg)
 
         success_scan =self.initialize_ids()
         if success_scan:
@@ -38,10 +46,13 @@ class Report():
         return email_info
 
     def initialize_ids(self):
-        self.cur.execute(self.QUERY_MACHINE,(self.msg.value["MACHINE"],self.msg.value["MACHINE"]))
-        self.machine_id= self.cur.fetchone()[0]
+        self.machine_id= self.msg.value["MACHINE_ID"]
 
         status= self.check_machine_status()
+
+        #in case of multiple workers scannig an inactive machine
+        #self.check_machine_active()
+
         self.cur.execute(self.QUERY_SAVE_SCAN,(status,self.machine_id ,int.from_bytes(self.msg.key,"big")))
         self.scan_id= self.cur.fetchone()[0]
         self.conn.commit()
@@ -58,9 +69,15 @@ class Report():
         for tool in result_scan:
             if (tool['TOOL']=="nikto" and 'status' not in tool) or (
                 tool['TOOL']=="nmap" and tool['run_stats']['host']['up']=='1') or (
-                tool['TOOL']=="vulscan" or tool['TOOL']=="zap" and  tool['state']=='up'):
+                tool['TOOL']=="vulscan" or tool['TOOL']=="zap" and  tool['state']=='up') or (
+                tool['TOOL']=="nmap_vulscan" and tool['status']=="UP"):
                 status="UP"
         return status
+
+    def check_machine_active(self):
+        self.cur.execute(self.QUERY_MACHINE_ACTIVE, (self.machine_id,))
+        self.active= self.cur.fetchone()[0]
+
 
     def get_tools_vulnerabilities_info(self):
         num_vulns_no_risk=0
@@ -77,7 +94,7 @@ class Report():
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(a["instances"]), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
+                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
                         num_vulns_risk+=1
                         avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
 
@@ -118,7 +135,13 @@ class Report():
         address_dns=Counter(tools_general_data["address_name"]).most_common(1)[0][0] if len(tools_general_data["address_name"]) > 0 else None
         os=Counter(tools_general_data["os"]).most_common(1)[0][0] if len(tools_general_data["os"]) > 0 else None
         if address_ip is not None and address_dns is not None:
-            self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
+            #See if machine is new          
+            self.cur.execute(self.QUERY_MACHINE,(self.machine_id,))
+            machine_info= self.cur.fetchone()
+            if address_dns!= machine_info[2]:
+                self.update_machine(address_ip,address_dns)
+            else:
+                self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
         if os is not None:
             self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
         self.conn.commit()
@@ -155,6 +178,11 @@ class Report():
                         port_id = str(p["port"])
                         if port_id not in tools_general_data:
                             tools_general_data[port_id]={"service_name":[], "service_version":[]}
+                    elif tool["TOOL"] == "nmap_malware":
+                        port_id= str(p["port"])
+                        if port_id not in tools_general_data:
+                            tools_general_data[port_id]={"service_name":[], "service_version":[], "malware": p["malware"], "risk": p["risk"]}
+
                     else:
                         port_id = str(p["id"])
                         if port_id not in tools_general_data:
@@ -167,6 +195,23 @@ class Report():
                             tools_general_data["os"].append(p["os"])
                         logging.warning("port id: " + str(port_id) + " service name: " + str(service_name) + " service version: " + str(service_version) )
         return tools_general_data
+
+    def update_machine(self, address_ip, address_dns):
+
+        if self.active:
+            #set currents machine as inactive
+            self.cur.execute(self.QUERY_UPDATE_STATUS, (self.machine_id,))
+            self.conn.commit()
+
+            #create new machine
+            self.cur.execute(self.QUERY_NEW_MACHINE, (address_ip, address_dns))
+            self.machine_id = self.cur.fetchone()[0]
+            self.conn.commit()
+        
+        #save scan
+        self.cur.execute(self.QUERY_SAVE_SCAN,("UP",self.machine_id ,int.from_bytes(self.msg.key,"big")))
+        self.scan_id= self.cur.fetchone()[0]
+        self.conn.commit()
 
     def sanitize(self, text):
         return text.replace("'","''")

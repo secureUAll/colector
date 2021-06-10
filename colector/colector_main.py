@@ -76,11 +76,11 @@ class Main():
 
             machine_id = cur.fetchone()
             if machine_id is None:
-                QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\",periodicity, \"nextScan\") VALUES(%s,%s,%s,%s,%s) RETURNING id'''
+                QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\", active, created, updated) VALUES(%s,%s,'2','W',NOW(), true, NOW(), NOW() ) RETURNING id'''
                 if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
-                    cur.execute(QUERY, (machine,'','2','W','NOW()'))
+                    cur.execute(QUERY, (machine,''))
                 else:
-                    cur.execute(QUERY, ('', machine,'2','W','NOW()'))
+                    cur.execute(QUERY, ('', machine))
                 machine_id= cur.fetchone()
                 self.conn.commit()
 
@@ -118,9 +118,9 @@ class Main():
         workers= cur.fetchall()
         for worker in workers:
             if machine[1] == '':
-                self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
+                self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0], "MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else: 
-                self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
+                self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0],"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
         self.producer.flush()
         cur.close()
 
@@ -141,7 +141,7 @@ class Main():
             else:
                 worker_machine_list.append(machine[1])
         cur.close()
-        self.producer.send(self.colector_topics[5], key=bytes(worker_id), value={"ADDRESS_LIST": worker_machine_list})
+        self.producer.send(self.colector_topics[5], key=bytes([worker_id]), value={"ADDRESS_LIST": worker_machine_list})
         self.producer.flush()
 
     def logs(self,msg):
