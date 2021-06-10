@@ -37,7 +37,7 @@ def scan():
     producer=connect_kafka_producer()
 
 
-    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" <= NOW()'''#and status=Active
+    QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" <= NOW() and active=true'''
 
     cur = conn.cursor()
     cur.execute(QUERY)
