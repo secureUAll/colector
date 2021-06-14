@@ -106,8 +106,8 @@ class Report():
 
         return num_vulns_no_risk,avg_risk,vulns_found
 
-    def save_vulnerabilities_info(self):
-        num_vulns_no_risk,avg_risk, vulns_found= self.get_tools_vulnerabilities_info()
+    def save_vulnerabilities_info(self,services_found):
+        num_vulns_no_risk,avg_risk, vulns_found= self.get_tools_vulnerabilities_info(services_found)
         logging.warning(vulns_found)
         for v in vulns_found:
             #risk,type,description,location,status,machine_id,scan_id
