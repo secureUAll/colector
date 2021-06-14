@@ -172,5 +172,5 @@ class Main():
     def report(self,msg):
         report=Report(self.conn)
         email_info =report.report(msg)
-        #from celery_worker import send_email
-        #send_email(msg)
+        from celery_worker import send_email
+        send_email(email_info, self.conn)

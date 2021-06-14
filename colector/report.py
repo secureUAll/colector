@@ -41,9 +41,10 @@ class Report():
         if success_scan:
             logging.warning(self.msg.value["RESULTS"] )
             services_found=self.save_general_info()
-            email_info =self.save_vulnerabilities_info(services_found)
-        self.cur.close()
-        return email_info
+            nvulns, solutions =self.save_vulnerabilities_info(services_found)
+            self.cur.close()
+            return {"MACHINE_ID": self.machine_id, "SOLUTIONS":solutions, "NVULNS": nvulns}
+        return {"MACHINE_ID": self.machine_id}
 
     def initialize_ids(self):
         self.machine_id= self.msg.value["MACHINE_ID"]
@@ -84,6 +85,7 @@ class Report():
         num_vulns_risk=0
         avg_risk=0
         vulns_found=[]
+        solutions=[]
 
         result_scan=self.msg.value["RESULTS"]
         for tool in result_scan:
@@ -94,7 +96,8 @@ class Report():
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
+                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"])})
+                        solutions.append((self.sanitize(a["alert"]),self.sanitize(a["solution"].replace("<p>",""))))
                         num_vulns_risk+=1
                         avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
             if tool['TOOL']=="nmap_vulscan" and "output" in tool:
@@ -104,10 +107,10 @@ class Report():
                         vulns_found.append({"cve": vuln})
 
 
-        return num_vulns_no_risk,avg_risk,vulns_found
+        return num_vulns_no_risk,avg_risk,vulns_found,solutions
 
     def save_vulnerabilities_info(self,services_found):
-        num_vulns_no_risk,avg_risk, vulns_found= self.get_tools_vulnerabilities_info(services_found)
+        num_vulns_no_risk,avg_risk, vulns_found, solutions= self.get_tools_vulnerabilities_info(services_found)
         logging.warning(vulns_found)
         for v in vulns_found:
             #risk,type,description,location,status,machine_id,scan_id
@@ -131,7 +134,8 @@ class Report():
             self.cur.execute(self.QUERY_UPDATE_RISK,(5,self.machine_id))
         self.conn.commit()
         
-        return ""
+        total_nvulns= num_vulns_no_risk + len(vulns_found)
+        return total_nvulns, solutions
 
     def save_general_info(self):     
         tools_general_data= self.get_tools_general_data()   

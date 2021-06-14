@@ -1,4 +1,4 @@
-from Email import Email
+from notification_sender import NotificationSender
 from Heartbeat import Heartbeat
 from celery import Celery
 import logging
@@ -87,14 +87,10 @@ def heartbeat():
 
 
 @app.task()
-def send_email(msg):
-    em = Email(msg)
-    em.startup()
-    em.broadcast()
-
-def report(msg):
-    #TODO report 
-    send_email(msg)
+def send_email(info, conn):
+    ns = NotificationSender(info, conn)
+    ns.startup()
+    ns.broadcast()
 
 
 
