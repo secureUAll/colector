@@ -40,6 +40,10 @@ class Notify(ABC):
 
     def _spacebelow(self) -> Notify:
         pass
+    
+    @abstractmethod
+    def clean(self) ->Notify:
+        pass
 
     # DECORATION methods
     def bold(self, text :str, end="\n") -> str:

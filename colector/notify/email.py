@@ -223,6 +223,9 @@ class EmailNotify(Notify):
     def __str__(self) -> str:
         return self._email
 
+    def clean(self) -> EmailNotify:
+      return EmailNotify() 
+
     def send(self, subject: str,  email: str):
         # End container
         self._email += """
