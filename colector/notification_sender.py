@@ -1,12 +1,13 @@
 from notify.slack import SlackNotify
 from notify.email import EmailNotify
 from notify.templates import Templates
+from connections import   connect_postgres
 
 import logging
 
 class NotificationSender():
-    def __init__(self, info, conn):
-        self.conn = conn
+    def __init__(self, info):
+        self.conn = connect_postgres()
         self.info= info
 
 

@@ -84,8 +84,8 @@ def heartbeat():
     hb.endup()
 
 @app.task()
-def send_email(info, conn):
-    ns = NotificationSender(info, conn)
+def send_email(info):
+    ns = NotificationSender(info)
     ns.run()
 
 
