@@ -146,28 +146,20 @@ class Main():
 
     def logs(self,msg):
         logging.warning("ENTROU NOS LOGS")
-        QUERY = '''INSERT INTO machines_log (date, path, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s or dns=%s LIMIT 1), %s)'''
+        QUERY = '''INSERT INTO machines_log (date, log, machine_id, worker_id) VALUES(%s, %s, (SELECT id FROM machines_machine WHERE ip = %s or dns=%s LIMIT 1), %s)'''
         cur = self.conn.cursor()
 
         # parameters
         dt = datetime.now(timezone.utc)
-        path="logs/"+str(round(time.time() * 1000))
+        log=json.dumps(msg.value["RESULTS"]).encode('latin')
         worker_id=int.from_bytes(msg.key,"big")
         machine_ip=msg.value["MACHINE"]
 
         # insert into log's table
-        cur.execute(QUERY, (dt, path, machine_ip,machine_ip, worker_id))
+        cur.execute(QUERY, (dt, log, machine_ip, machine_ip, worker_id))
         self.conn.commit()
         cur.close()
-        
-        # guardar os logs num ficheiro
-        f=open(path, "wb")
-        f.write(json.dumps(msg.value["RESULTS"]).encode('latin'))
 
-        """logging.warning("ENTROU NOS LOGS, CONECTOU À BD, GUARDOU NA TABELA, GUARDOU NO PATH, AGORA VAMOS VER O QUE FICOU GUARDADO")
-        f=open(path, "rb")
-        txt=f.read()
-        """
     
     def report(self,msg):
         report=Report(self.conn)
