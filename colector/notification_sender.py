@@ -45,12 +45,8 @@ class NotificationSender():
         if "NVULNS" in self.info:
             if(self.info["NVULNS"]==0):
                 Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"] ,data[2])
-                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"], data[2])
-
             else:
                 Templates.hostup_withvulns(EmailNotify(),user_info, host, scan_date , self.info["MACHINE_ID"] , self.info["SOLUTIONS"],self.info["NVULNS"],data[3] )
-            
-        
         else:
             Templates.hostdown(EmailNotify(), user_info, host, self.info["MACHINE_ID"])
         
