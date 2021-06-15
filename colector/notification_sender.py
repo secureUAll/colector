@@ -26,7 +26,7 @@ class NotificationSender():
         cur.execute(QUERY_USER_EMAILS, (self.info["MACHINE_ID"],))
         user_info= cur.fetchall()
 
-        if len(self.emails)>0:
+        if len(user_info)>0:
             cur.execute(QUERY_MACHINE, (self.info["MACHINE_ID"],))
             #ip, dns, scanLevel and risk
             data= cur.fetchone()
