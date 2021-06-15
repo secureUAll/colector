@@ -14,7 +14,7 @@ class NotificationSender():
     def run(self):
         logging.warning("Notifications for machine" + str(self.info["MACHINE_ID"]))
 
-        QUERY_USER_EMAILS= "select lu.first_name, ln.type, ln.value  from  machines_machine mm, machines_machineuser mu, login_user lu, login_usernotification ln where mm.id=%s AND mm.id=mu.id  AND mu.user_id=lu.id AND ln.id=lu.id"
+        QUERY_USER_EMAILS= "select lu.first_name, ln.type, ln.value  from  machines_machine mm, machines_machineuser mu, login_user lu, login_usernotification ln where mm.id=%s AND mm.id=mu.machine_id  AND mu.user_id=lu.id AND ln.id=lu.id"
         
         QUERY_MACHINE = "select ip, dns, \"scanLevel\", risk from machines_machine where id=%s"
         QUERY_SCAN= "select date from  machines_scan where id=%s  ORDER BY date  DESC LIMIT 1"
