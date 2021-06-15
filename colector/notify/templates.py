@@ -17,12 +17,12 @@ class Templates:
             notify.send("[Secure(UA)ll alert] Your machine is down", u[2])
             notify=notify.clean()
 
-    def hostup_novulns(notify: Notify, user_info: list, hostname: str,date: str, machineid: int,  scanLevel:int):
+    def hostup_novulns(notify: Notify, user_info: list, hostname: str,date: str, machineid: int,  scanLevel:str):
         for u in user_info:
             notify\
                 .heading(f"Hello {notify.bold(u[0])},")\
                 .text(f"  Congratulations &#127881;! Your host  {notify.bold(hostname)} was scanned on {notify.bold(date)} and no vulnerabilities were found.")
-            if scanLevel<4:
+            if int(scanLevel)<4:
                 notify.information('Information',  f'Your scrapping level is {scanLevel}, which can lead to less found vulnerabilities. You can increase this level in the host page.') 
             notify.text("For more information visit your host page on Secure(UA)ll website.")\
                 .button(f"https://deti-vuln-mon.ua.pt/machines/{machineid}", "Machine page")\
