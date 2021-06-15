@@ -1,28 +1,54 @@
-
 from notify.slack import SlackNotify
 from notify.email import EmailNotify
 from notify.templates import Templates
 
-from connections import connect_postgres 
+import logging
 
 class NotificationSender():
     def __init__(self, info, conn):
         self.conn = conn
         self.info= info
 
-    """
-    def startup(self):
-        QUERY_USER_EMAILS= "select \"notificationEmail\"  from machines_subscription ms, machines_machine mm where mm.id=ms.machine_id AND (mm.dns=%s OR mm.ip=%s) "
 
-        cur = self.postgre.cursor()
-        cur.execute(QUERY_USER_EMAILS, (self.msg.value["MACHINE"], self.msg.value["MACHINE"]))
-        self.emails= cur.fetchall()
-        cur.close()
-    """
-    def broadcast(self):
-        Templates.hostdown(EmailNotify(), "Manel", "xxx@ua.pt", 2, ["margarida.martins@ua.pt"])
-        Templates.hostup_novulns(EmailNotify(), "Manel", "xxx@ua.pt", "2020-03-03" , 2, ["margarida.martins@ua.pt"],2)
-        Templates.hostup_novulns(EmailNotify(), "Manel", "xxx@ua.pt", "2020-03-03" , 2, ["margarida.martins@ua.pt"],4)
-        Templates.hostup_withvulns(EmailNotify(),"Manel", "xxx@ua.pt", "2020-03-03" , 2, ["margarida.martins@ua.pt"], [("vuln1", "solution1"), ("vuln2", "solution2")],2,3 )
+    def run(self):
+        logging.warning("Notifications for machine" + str(self.info["MACHINE_ID"]))
 
+        QUERY_USER_EMAILS= "select lu.first_name, ln.type, ln.value  from  machines_machine mm, machines_machineuser mu, login_user lu, login_usernotification ln \
+            where mm.id=%s AND mm.id=mu.id  AND mu.user_id=lu.id AND ln.id=lu.id"
+        
+        QUERY_MACHINE = "select ip, dns, \"scanLevel\", risk from machines_machine where id=%s"
+        QUERY_SCAN= "select date from  machines_scan where id=%s  ORDER BY date  DESC LIMIT 1"
 
+        cur = self.conn.cursor()
+
+        # name and where to send notification
+        cur.execute(QUERY_USER_EMAILS, (self.info["MACHINE_ID"],))
+        user_info= cur.fetchall()
+
+        if len(self.emails)>0:
+            cur.execute(QUERY_MACHINE, (self.info["MACHINE_ID"],))
+            #ip, dns, scanLevel and risk
+            data= cur.fetchone()
+
+            cur.execute(QUERY_SCAN, (self.info["MACHINE_ID"],))
+            scan_date= cur.fetchone()[0]
+            cur.close()
+            self.broadcast(user_info,data, scan_date)
+    
+    def broadcast(self, user_info, data, scan_date):
+        #get dns or ip if dns not present
+        host= data[1] if data[1] != '' else data[0]
+
+        if "NVULNS" in self.info:
+            if(self.info==0):
+                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"] ,self.data[2])
+                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"], self.data[2])
+
+            else:
+                Templates.hostup_withvulns(EmailNotify(),user_info, host, scan_date , self.info["MACHINE_ID"] , self.info["SOLUTIONS"],self.info["NVULNS"],self.data[3] )
+            
+        
+        else:
+            Templates.hostdown(EmailNotify(), user_info, host, self.info["MACHINE_ID"])
+        
+        

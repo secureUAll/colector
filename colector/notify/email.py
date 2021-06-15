@@ -223,7 +223,7 @@ class EmailNotify(Notify):
     def __str__(self) -> str:
         return self._email
 
-    def send(self, subject: str,  emails: list):
+    def send(self, subject: str,  email: str):
         # End container
         self._email += """
                            </td>
@@ -260,13 +260,13 @@ class EmailNotify(Notify):
         mailserver.ehlo()
         mailserver.starttls()
         mailserver.login('deti-vuln-mon@ua.pt','eGdgtY56eF#bve8AxeFe')
-        for email in emails:
-          msg = MIMEMultipart('alternative')
-          msg['Subject'] = subject
-          msg['From'] = 'deti-vuln-mon@ua.pt'
-          msg['To'] = email
-          html = MIMEText(self._email, 'html')
-          msg.attach(html)
-          mailserver.sendmail('deti-vuln-mon@ua.pt',email,msg.as_string())
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = 'deti-vuln-mon@ua.pt'
+        msg['To'] = email
+        html = MIMEText(self._email, 'html')
+        msg.attach(html)
+        mailserver.sendmail('deti-vuln-mon@ua.pt',email,msg.as_string())
         
         mailserver.quit()

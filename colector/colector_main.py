@@ -173,4 +173,4 @@ class Main():
         report=Report(self.conn)
         email_info =report.report(msg)
         from celery_worker import send_email
-        send_email(email_info, self.conn)
+        send_email(email_info, self.conn).delay()
