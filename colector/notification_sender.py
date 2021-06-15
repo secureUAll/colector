@@ -14,8 +14,7 @@ class NotificationSender():
     def run(self):
         logging.warning("Notifications for machine" + str(self.info["MACHINE_ID"]))
 
-        QUERY_USER_EMAILS= "select lu.first_name, ln.type, ln.value  from  machines_machine mm, machines_machineuser mu, login_user lu, login_usernotification ln \
-            where mm.id=%s AND mm.id=mu.id  AND mu.user_id=lu.id AND ln.id=lu.id"
+        QUERY_USER_EMAILS= "select lu.first_name, ln.type, ln.value  from  machines_machine mm, machines_machineuser mu, login_user lu, login_usernotification ln where mm.id=%s AND mm.id=mu.id  AND mu.user_id=lu.id AND ln.id=lu.id"
         
         QUERY_MACHINE = "select ip, dns, \"scanLevel\", risk from machines_machine where id=%s"
         QUERY_SCAN= "select date from  machines_scan where id=%s  ORDER BY date  DESC LIMIT 1"
@@ -27,6 +26,9 @@ class NotificationSender():
         user_info= cur.fetchall()
 
         if len(user_info)>0:
+            logging.warning("User info")
+            logging.warning(user_info)
+            
             cur.execute(QUERY_MACHINE, (self.info["MACHINE_ID"],))
             #ip, dns, scanLevel and risk
             data= cur.fetchone()
@@ -42,11 +44,11 @@ class NotificationSender():
 
         if "NVULNS" in self.info:
             if(self.info==0):
-                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"] ,self.data[2])
-                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"], self.data[2])
+                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"] ,data[2])
+                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"], data[2])
 
             else:
-                Templates.hostup_withvulns(EmailNotify(),user_info, host, scan_date , self.info["MACHINE_ID"] , self.info["SOLUTIONS"],self.info["NVULNS"],self.data[3] )
+                Templates.hostup_withvulns(EmailNotify(),user_info, host, scan_date , self.info["MACHINE_ID"] , self.info["SOLUTIONS"],self.info["NVULNS"],data[3] )
             
         
         else:
