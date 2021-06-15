@@ -43,7 +43,7 @@ class NotificationSender():
         host= data[1] if data[1] != '' else data[0]
 
         if "NVULNS" in self.info:
-            if(self.info==0):
+            if(self.info["NVULNS"]==0):
                 Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"] ,data[2])
                 Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"], data[2])
 
