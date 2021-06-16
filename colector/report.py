@@ -40,10 +40,11 @@ class Report():
         success_scan =self.initialize_ids()
         if success_scan:
             logging.warning(self.msg.value["RESULTS"] )
-            self.save_general_info()
-            email_info =self.save_vulnerabilities_info()
-        self.cur.close()
-        return email_info
+            services_found=self.save_general_info()
+            nvulns, solutions =self.save_vulnerabilities_info(services_found)
+            self.cur.close()
+            return {"MACHINE_ID": self.machine_id, "SOLUTIONS":solutions, "NVULNS": nvulns}
+        return {"MACHINE_ID": self.machine_id}
 
     def initialize_ids(self):
         self.machine_id= self.msg.value["MACHINE_ID"]
@@ -51,7 +52,7 @@ class Report():
         status= self.check_machine_status()
 
         #in case of multiple workers scannig an inactive machine
-        #self.check_machine_active()
+        self.check_machine_active()
 
         self.cur.execute(self.QUERY_SAVE_SCAN,(status,self.machine_id ,int.from_bytes(self.msg.key,"big")))
         self.scan_id= self.cur.fetchone()[0]
@@ -79,11 +80,12 @@ class Report():
         self.active= self.cur.fetchone()[0]
 
 
-    def get_tools_vulnerabilities_info(self):
+    def get_tools_vulnerabilities_info(self, services_found):
         num_vulns_no_risk=0
         num_vulns_risk=0
         avg_risk=0
         vulns_found=[]
+        solutions=[]
 
         result_scan=self.msg.value["RESULTS"]
         for tool in result_scan:
@@ -94,15 +96,21 @@ class Report():
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"]), "solution": self.sanitize(a["solution"].replace("<p>",""))})
+                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"])})
+                        solutions.append((self.sanitize(a["alert"]),self.sanitize(a["solution"].replace("<p>",""))))
                         num_vulns_risk+=1
                         avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
+            if tool['TOOL']=="nmap_vulscan" and "output" in tool:
+                for vuln in tool["output"]:
+                    if any([s[0] in vuln and s[1] in vuln for s in services_found]):
+                        logging.warning("Added vulsacan vuln"+ vuln)
+                        vulns_found.append({"cve": vuln})
 
 
-        return num_vulns_no_risk,avg_risk,vulns_found
+        return num_vulns_no_risk,avg_risk,vulns_found,solutions
 
-    def save_vulnerabilities_info(self):
-        num_vulns_no_risk,avg_risk, vulns_found= self.get_tools_vulnerabilities_info()
+    def save_vulnerabilities_info(self,services_found):
+        num_vulns_no_risk,avg_risk, vulns_found, solutions= self.get_tools_vulnerabilities_info(services_found)
         logging.warning(vulns_found)
         for v in vulns_found:
             #risk,type,description,location,status,machine_id,scan_id
@@ -126,7 +134,8 @@ class Report():
             self.cur.execute(self.QUERY_UPDATE_RISK,(5,self.machine_id))
         self.conn.commit()
         
-        return ""
+        total_nvulns= num_vulns_no_risk + len(vulns_found)
+        return total_nvulns, solutions
 
     def save_general_info(self):     
         tools_general_data= self.get_tools_general_data()   
@@ -146,15 +155,21 @@ class Report():
             self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
         self.conn.commit()
 
+        services_found=[]
         for k in tools_general_data.keys():
             if k!= "address_ip" and k!="os"  and  k!= "address_name" and tools_general_data[k]["service_name"] and tools_general_data[k]["service_version"]:
                 service_name=Counter(tools_general_data[k]["service_name"]).most_common(1)[0][0] if len(tools_general_data[k]["service_version"])>0 else 'NOT DETECTED'
                 service_version=Counter(tools_general_data[k]["service_version"]).most_common(1)[0][0] if len(tools_general_data[k]["service_version"])>0 else 'NOT DETECTED'
+                
                 self.cur.execute(self.QUERY_MACHINE_SERVICE, (service_name,service_version))
                 service_id= self.cur.fetchone()[0]
                 self.conn.commit()
                 self.cur.execute(self.QUERY_MACHINE_PORT, (int(k),self.machine_id,service_id))
-                self.conn.commit()      
+                self.conn.commit()  
+
+                services_found.append((service_name,service_version)) 
+
+        return services_found
 
         
 
