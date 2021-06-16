@@ -1,4 +1,4 @@
-from notify.slack import SlackNotify
+from notify.teams import TeamsNotify
 from notify.email import EmailNotify
 from notify.templates import Templates
 from connections import   connect_postgres
@@ -42,12 +42,14 @@ class NotificationSender():
         #get dns or ip if dns not present
         host= data[1] if data[1] != '' else data[0]
 
-        if "NVULNS" in self.info:
-            if(self.info["NVULNS"]==0):
-                Templates.hostup_novulns(EmailNotify(), user_info, host, scan_date , self.info["MACHINE_ID"] ,data[2])
+        for u in user_info:
+            notify= EmailNotify() if user_info[1]=="Email" else TeamsNotify()
+            if "NVULNS" in self.info:
+                if(self.info["NVULNS"]==0):
+                    Templates.hostup_novulns(notify, u, host, scan_date , self.info["MACHINE_ID"] ,data[2])
+                else:
+                    Templates.hostup_withvulns(notify,u, host, scan_date , self.info["MACHINE_ID"] , self.info["SOLUTIONS"],self.info["NVULNS"],data[3] )
             else:
-                Templates.hostup_withvulns(EmailNotify(),user_info, host, scan_date , self.info["MACHINE_ID"] , self.info["SOLUTIONS"],self.info["NVULNS"],data[3] )
-        else:
-            Templates.hostdown(EmailNotify(), user_info, host, self.info["MACHINE_ID"])
+                Templates.hostdown(notify, u, host, self.info["MACHINE_ID"])
         
         
