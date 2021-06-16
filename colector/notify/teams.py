@@ -91,7 +91,7 @@ class TeamsNotify(Notify):
     def clean(self) -> TeamsNotify:
         return TeamsNotify()
 
-    def send(self, subject: str, preview: str,  recipient: str):
+    def send(self, subject: str,   recipient: str, preview: str,):
         self._msg['summary'] = preview
         print("SENDING to", recipient)
         print()
