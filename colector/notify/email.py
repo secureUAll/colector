@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from django.core.mail import send_mail
 from .notify import Notify
-from django.conf import settings as conf_settings
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 
 
 class EmailNotify(Notify):
