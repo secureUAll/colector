@@ -14,7 +14,7 @@ class Templates:
                 .button(f"https://deti-vuln-mon.ua.pt/machines/{machineid}", "Machine page")\
                 .text("Remember to keep your software updated,", end="")\
                 .text(notify.bold("Secure(UA)ll"))
-            notify.send("[Secure(UA)ll alert] Your machine is down", u[2])
+            notify.send("[Secure(UA)ll alert] Your machine is down", u[2],"Secure(UA)ll")
             notify=notify.clean()
 
     def hostup_novulns(notify: Notify, user_info: list, hostname: str,date: str, machineid: int,  scanLevel:str):
@@ -29,7 +29,7 @@ class Templates:
                 .text("Remember to keep your software updated,", end="")\
                 .text(notify.bold("Secure(UA)ll"))
 
-            notify.send("[Secure(UA)ll alert] Your machine is down", u[2])
+            notify.send("[Secure(UA)ll alert] Your machine is down", u[2], "Secure(UA)ll")
             notify= notify.clean()
 
     def hostup_withvulns(notify: Notify, user_info: list, hostname: str,date: str, machineid: int, solutions:list, n_vulns: int, risk_level:int ):
@@ -45,5 +45,5 @@ class Templates:
                 .text("Remember to keep your software updated,", end="")\
                 .text(notify.bold("Secure(UA)ll"))
 
-            notify.send("[Secure(UA)ll alert] Your machine is down", u[2])
+            notify.send("[Secure(UA)ll alert] Your machine is down", u[2], "Secure(UA)ll")
             notify= notify.clean()
