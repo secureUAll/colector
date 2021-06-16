@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+from django.core.mail import send_mail
 from .notify import Notify
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from django.conf import settings as conf_settings
 
 
 class EmailNotify(Notify):
+    
 
     def __init__(self):
         # <head>
@@ -84,14 +84,8 @@ class EmailNotify(Notify):
             return self._spacebelow()
         return self
 
-    def heading2(self, h2: str, end="\n") -> EmailNotify:
-        self._email += f'<h4> {h2}</h4>'
-        if end == "\n":
-            return self._spacebelow()
-        return self
-
-    def heading3(self, h2: str, end="\n") -> EmailNotify:
-        self._email += f'<h5 class="text-muted" style="color: #718096; padding-top: 0; padding-bottom: 0; font-weight: 500; vertical-align: baseline; font-size: 20px; line-height: 24px; margin: 0;" align="left">{h2}</h5>'
+    def heading2(self, h2: str, end="\n"):
+        self._email += '<h5 class="text-muted" style="color: #718096; padding-top: 0; padding-bottom: 0; font-weight: 500; vertical-align: baseline; font-size: 20px; line-height: 24px; margin: 0;" align="left">{problemname}</h5>'
         if end == "\n":
             return self._spacebelow()
         return self
@@ -152,13 +146,14 @@ class EmailNotify(Notify):
             return self._spacebelow()
         return self
 
-    def cardStart(self) -> EmailNotify:
+    def card(self, title: str, content: list, end="\n") -> Notify:
+        # Card start
         self._email += """
             <table class="s-5 w-full" role="presentation" border="0" cellpadding="0" cellspacing="0" style="width: 100%;" width="100%">
               <tbody>
                 <tr>
                   <td style="line-height: 20px; font-size: 20px; width: 100%; height: 20px; margin: 0;" align="left" width="100%" height="20">
-                     
+
                   </td>
                 </tr>
               </tbody>
@@ -167,21 +162,23 @@ class EmailNotify(Notify):
               <tbody>
                 <tr>
                   <td style="line-height: 24px; font-size: 16px; width: 100%; margin: 0;" align="left" bgcolor="#ffffff">
-                    
+
                     <table class="card-body" role="presentation" border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
               <tbody>
                 <tr>
                   <td style="line-height: 24px; font-size: 16px; width: 100%; margin: 0; padding: 20px;" align="left">
         """
-        return self
-
-    def cardEnd(self, end="\n") -> EmailNotify:
+        # Card content
+        self.heading2(title)
+        for c in content:
+            self.heading3(c["name"]).text(c["value"])
+        # Card end
         self._email += """
                   </td>
                 </tr>
               </tbody>
             </table>
-                  
+
                   </td>
                 </tr>
               </tbody>
@@ -190,15 +187,15 @@ class EmailNotify(Notify):
               <tbody>
                 <tr>
                   <td style="line-height: 20px; font-size: 20px; width: 100%; height: 20px; margin: 0;" align="left" width="100%" height="20">
-                     
+
                   </td>
                 </tr>
               </tbody>
             </table>
         """
-        if end=="\n":
+        if end == "\n":
             self._spacebelow()
-        return self
+        pass
 
     def _spacebelow(self) -> EmailNotify:
         self._email += """
@@ -224,9 +221,9 @@ class EmailNotify(Notify):
         return self._email
 
     def clean(self) -> EmailNotify:
-      return EmailNotify() 
+      return EmailNotify()
 
-    def send(self, subject: str,  email: str):
+    def send(self, subject: str,  email: str, preview: str):
         # End container
         self._email += """
                            </td>
@@ -253,7 +250,6 @@ class EmailNotify(Notify):
         <div id="force-encoding-to-utf-8" style="display: none;">&#10175;</div>
         </body>
         </html>
-
         """
 
 
