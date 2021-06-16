@@ -8,3 +8,4 @@ psycopg2-binary
 redis
 pytest
 requests
+beautifulsoup4
