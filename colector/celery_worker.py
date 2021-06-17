@@ -21,22 +21,28 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    #sender.add_periodic_task(300, heartbeat.s())
+    sender.add_periodic_task(300, heartbeat.s())
     sender.add_periodic_task(60, scan.s())
 
 @app.task()
 def main():
+    logging.info("Starting Colector")
+
     from colector_main import Main
     m=Main()
     m.run()
 
-#get the next machines to be scanned
+#
+# Task to get the next hosts to be scanned
+#
 @app.task
 def scan():
+    logging.info("Starting Periodic scanning task")
+
     conn= connect_postgres()
     producer=connect_kafka_producer()
 
-
+    # get hosts to be scanned
     QUERY = '''SELECT id, ip, dns, \"scanLevel\", periodicity  FROM  machines_machine WHERE \"nextScan\" <= NOW() and active=true'''
 
     cur = conn.cursor()
@@ -44,9 +50,12 @@ def scan():
 
     machines= cur.fetchall()
     for machine in machines:
+
+        #get workers associated with the host
         QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
         QUERY_WORKER_UPDATE = '''UPDATE workers_worker SET status=\'A\' WHERE id= %s'''
         
+        #update host next scan
         if machine[4] == 'D':
             QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
             
@@ -61,12 +70,14 @@ def scan():
 
         workers= cur.fetchall()
         for worker in workers:
-            logging.warning(bytes([worker[0]]))
+
             cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
             conn.commit()
             if machine[1] == '':
+                logging.info(f"Sending Worker {str(worker[0])} a scanning request of host with dns {machine[2]}")
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0],"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
-            else: 
+            else:
+                logging.info(f"Sending Worker {str(worker[0])} a scanning request of host with dns {machine[1]}") 
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0],"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
 
     producer.flush()
@@ -74,6 +85,8 @@ def scan():
 
 @app.task
 def heartbeat():
+
+    logging.info(f"Starting Heartbeat")
     hb = Heartbeat()
     hb.startup()
     hb.broadcast()
@@ -85,6 +98,9 @@ def heartbeat():
 
 @app.task()
 def send_email(info):
+
+    logging.info(f"Starting Notification")
+
     ns = NotificationSender(info)
     ns.run()
 

@@ -3,6 +3,9 @@ import json
 import psycopg2
 import redis
 
+#
+# Creating Kafka Producer
+#
 def connect_kafka_producer():
     #kafka producer
     producer = KafkaProducer(bootstrap_servers='kafka:9092',
@@ -19,6 +22,9 @@ def connect_kafka_producer():
     
     return producer
 
+#
+# Creating Kafka Consumer
+#
 def connect_kafka_consumer():
     #kafka consumer
     consumer = KafkaConsumer(bootstrap_servers='kafka:9092',
@@ -37,11 +43,16 @@ def connect_kafka_consumer():
     
     return consumer
 
-
+#
+# Creating Postgres Connection
+#
 def connect_postgres():
     conn=psycopg2.connect(host="db",database="secureuall",user="frontend", password="abc")
     return conn
 
+#
+# Creating Redis Connection
+#
 def connect_redis():
     r=redis.Redis(host='shared_mem', port=6379, db=0)
     return r

@@ -27,7 +27,7 @@ class Templates:
             .text("Remember to keep your software updated,", end="")\
             .text(notify.bold("Secure(UA)ll"))
 
-        notify.send("[Secure(UA)ll alert] Your machine is down", u[2], "Secure(UA)ll")
+        notify.send("[Secure(UA)ll alert] No vulnerabilities found", u[2], "Secure(UA)ll")
         notify= notify.clean()
 
     def hostup_withvulns(notify: Notify, u: list, hostname: str,date: str, machineid: int, solutions:list, n_vulns: int, risk_level:int ):
@@ -42,5 +42,5 @@ class Templates:
             .text("Remember to keep your software updated,", end="")\
             .text(notify.bold("Secure(UA)ll"))
 
-        notify.send("[Secure(UA)ll alert] Your machine is down", u[2], "Secure(UA)ll")
+        notify.send(f"[Secure(UA)ll alert] {n_vulns} vulnerabilities found", u[2], "Secure(UA)ll")
         notify= notify.clean()
