@@ -1,11 +1,5 @@
 from collections import Counter
 import logging
-
-#TODO
-"""
-Disable Scan in some ports
-Adjust metrics
-"""
 import logging
 
 class Report():
@@ -35,17 +29,24 @@ class Report():
         self.msg= msg
         self.cur= self.conn.cursor()
         
-        logging.warning(msg)
+        logging.info("Message form worker {msg}")
 
         success_scan =self.initialize_ids()
+
+        #if scan was successfull retrive solutions
         if success_scan:
-            logging.warning(self.msg.value["RESULTS"] )
+            logging.info("Scan was sucessfull")
             services_found=self.save_general_info()
             nvulns, solutions =self.save_vulnerabilities_info(services_found)
             self.cur.close()
             return {"MACHINE_ID": self.machine_id, "SOLUTIONS":solutions, "NVULNS": nvulns}
+
         return {"MACHINE_ID": self.machine_id}
 
+    #
+    # check host status returned by the tools
+    # seeing if the machine no loger exist or was updated
+    #
     def initialize_ids(self):
         self.machine_id= self.msg.value["MACHINE_ID"]
 
@@ -63,6 +64,9 @@ class Report():
 
         return False
 
+    #
+    # check host status returned by the tools
+    #
     def check_machine_status(self):
         status= "DOWN"
 
@@ -75,11 +79,16 @@ class Report():
                 status="UP"
         return status
 
+    #
+    # get active parameter of the host
+    #
     def check_machine_active(self):
         self.cur.execute(self.QUERY_MACHINE_ACTIVE, (self.machine_id,))
         self.active= self.cur.fetchone()[0]
 
-
+    #
+    # process vulnerabilities found by the tools
+    #
     def get_tools_vulnerabilities_info(self, services_found):
         num_vulns_no_risk=0
         num_vulns_risk=0
@@ -109,6 +118,9 @@ class Report():
 
         return num_vulns_no_risk,avg_risk,vulns_found,solutions
 
+    #
+    # save vulnerabilities processed
+    #
     def save_vulnerabilities_info(self,services_found):
         num_vulns_no_risk,avg_risk, vulns_found, solutions= self.get_tools_vulnerabilities_info(services_found)
         logging.warning(vulns_found)
@@ -137,13 +149,19 @@ class Report():
         total_nvulns= num_vulns_no_risk + len(vulns_found)
         return total_nvulns, solutions
 
+
+    #
+    # save general host information processed
+    #
     def save_general_info(self):     
         tools_general_data= self.get_tools_general_data()   
 
         address_ip=Counter(tools_general_data["address_ip"]).most_common(1)[0][0] if len(tools_general_data["address_ip"]) > 0 else None
         address_dns=Counter(tools_general_data["address_name"]).most_common(1)[0][0] if len(tools_general_data["address_name"]) > 0 else None
         os=Counter(tools_general_data["os"]).most_common(1)[0][0] if len(tools_general_data["os"]) > 0 else None
+        
         if address_ip is not None and address_dns is not None:
+            
             #See if machine is new          
             self.cur.execute(self.QUERY_MACHINE,(self.machine_id,))
             machine_info= self.cur.fetchone()
@@ -151,6 +169,7 @@ class Report():
                 self.update_machine(address_ip,address_dns)
             else:
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
+        
         if os is not None:
             self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
         self.conn.commit()
@@ -172,12 +191,16 @@ class Report():
         return services_found
 
         
-
+    #
+    # process general host information found by the tools
+    #
     def get_tools_general_data(self):
         result_scan=self.msg.value["RESULTS"]
         tools_general_data= {"address_ip":[],"address_name":[], "os":[]}
 
         for tool in result_scan:
+
+            # there is information about the host address
             if 'address' in tool:
                 logging.warning("adding ip: " + str(tool["address"]["address_ip"]) + "adding dns: " + str(tool["address"]["address_name"]) )
                 if tool["address"]["address_ip"] is not None:
@@ -185,6 +208,7 @@ class Report():
                 if tool["address"]["address_name"] is not None:
                     tools_general_data["address_name"].append(tool["address"]["address_name"])
 
+            # there is information about the host ports
             if 'ports' in tool:
                 logging.warning("adding ports")
                 ports= tool["ports"]
@@ -193,6 +217,7 @@ class Report():
                         port_id = str(p["port"])
                         if port_id not in tools_general_data:
                             tools_general_data[port_id]={"service_name":[], "service_version":[]}
+                    
                     elif tool["TOOL"] == "nmap_malware":
                         port_id= str(p["port"])
                         if port_id not in tools_general_data:
@@ -203,14 +228,18 @@ class Report():
                         if port_id not in tools_general_data:
                             tools_general_data[port_id]={"service_name":[], "service_version":[]}
                         service_name= p["name"]
-                        service_version= p["product"] + p["version"] if p["product"] is not None else None
+                        service_version= p["product"] if p["product"] is not None else  "" + p["version"] if p["version"] is not None else  ""
                         tools_general_data[port_id]["service_name"].append(service_name)
-                        tools_general_data[port_id]["service_version"].append(service_version) if service_version is not None else None
+                        tools_general_data[port_id]["service_version"].append(service_version) if service_version is not None or service_version!="" else None
                         if "os" in p and p["os"] is not None:
                             tools_general_data["os"].append(p["os"])
                         logging.warning("port id: " + str(port_id) + " service name: " + str(service_name) + " service version: " + str(service_version) )
+        
         return tools_general_data
 
+    #
+    # If a new host was found while scanning update
+    #
     def update_machine(self, address_ip, address_dns):
 
         if self.active:
