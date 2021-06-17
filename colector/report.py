@@ -5,7 +5,7 @@ import logging
 class Report():
     QUERY_MACHINE = '''SELECT id, ip, dns FROM machines_machine WHERE id=%s'''
     QUERY_MACHINE_ACTIVE = '''SELECT active FROM machines_machine WHERE id=%s'''
-    QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\") VALUES (%s,%s,%s,true) ON CONFLICT  DO NOTHING'''
+    QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\", vulnerable) VALUES (%s,%s,%s,true, %s) ON CONFLICT  DO NOTHING'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
     QUERY_NEW_MACHINE = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\", active, created, updated) VALUES(%s,%s,'2','W',NOW(), true, NOW(), NOW() ) RETURNING id'''
     QUERY_UPDATE_ADDRESS = '''UPDATE  machines_machine SET ip = %s, dns=%s WHERE id=%s'''
@@ -183,7 +183,12 @@ class Report():
                 self.cur.execute(self.QUERY_MACHINE_SERVICE, (service_name,service_version))
                 service_id= self.cur.fetchone()[0]
                 self.conn.commit()
-                self.cur.execute(self.QUERY_MACHINE_PORT, (int(k),self.machine_id,service_id))
+
+                if "malware" in k:
+                    self.cur.execute(self.QUERY_MACHINE_PORT, (int(k),self.machine_id,service_id,True))
+                else:
+                    self.cur.execute(self.QUERY_MACHINE_PORT, (int(k),self.machine_id,service_id,False))
+                    
                 self.conn.commit()  
 
                 services_found.append((service_name,service_version)) 
@@ -221,7 +226,7 @@ class Report():
                     elif tool["TOOL"] == "nmap_malware":
                         port_id= str(p["port"])
                         if port_id not in tools_general_data:
-                            tools_general_data[port_id]={"service_name":[], "service_version":[], "malware": p["malware"], "risk": p["risk"]}
+                            tools_general_data[port_id]={"service_name":[], "service_version":[], "malware": p["malware"]}
 
                     else:
                         port_id = str(p["id"])
