@@ -29,7 +29,7 @@ class Report():
         self.msg= msg
         self.cur= self.conn.cursor()
         
-        logging.info("Message form worker {msg}")
+        logging.info(f"Message form worker {msg}")
 
         success_scan =self.initialize_ids()
 
