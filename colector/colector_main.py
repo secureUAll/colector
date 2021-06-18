@@ -79,7 +79,7 @@ class Main():
 
         # create a new cursor
         cur = self.conn.cursor()
-        cur.execute(QUERY, ("worker","I","0", "NOW()"))
+        cur.execute(QUERY, (key.decode()[:12],"I","0", "NOW()"))
 
         # get the generated id back
         worker_id = cur.fetchone()[0]

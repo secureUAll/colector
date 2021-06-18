@@ -91,24 +91,34 @@ class Report():
     #
     def get_tools_vulnerabilities_info(self, services_found):
         num_vulns_no_risk=0
-        num_vulns_risk=0
-        avg_risk=0
+        risk=[0,0,0,0,0]
         vulns_found=[]
         solutions=[]
 
         result_scan=self.msg.value["RESULTS"]
         for tool in result_scan:
+
+            # get vulnerabilities from nikto
             if tool['TOOL']=="nikto" and "scan" in tool:
                 for vuln in tool['scan']:
-                    vulns_found.append({"location":self.sanitize(vuln["url"]), "desc":self.sanitize(vuln["message"])})
-                    num_vulns_no_risk +=1
+                    # when nikto detects software outdated
+                    if "appears to be outdated" in vuln["message"]:
+                        vulns_found.append({"risk":3,"location":self.sanitize(vuln["url"]), "desc":self.sanitize(vuln["message"])})
+                        solutions.append((self.sanitize(vuln["message"]),"Update your software!"))
+                        risk[2]+=1
+                    else:
+                        vulns_found.append({"location":self.sanitize(vuln["url"]), "desc":self.sanitize(vuln["message"])})
+                        num_vulns_no_risk +=1
+            
+            # get vulnerabilities from zap
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
                         vulns_found.append({"risk": int(a["risk"]) +1 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"])})
                         solutions.append((self.sanitize(a["alert"]),self.sanitize(a["solution"].replace("<p>",""))))
-                        num_vulns_risk+=1
-                        avg_risk= (avg_risk*(num_vulns_risk-1) + (int(a["risk"])+1))//num_vulns_risk
+                        risk[int(a["risk"])]+= 1
+            
+            # get vulnerabilities from vulscan
             if tool['TOOL']=="nmap_vulscan" and "output" in tool:
                 for vuln in tool["output"]:
                     if any([s[0] in vuln and s[1] in vuln for s in services_found]):
@@ -116,13 +126,13 @@ class Report():
                         vulns_found.append({"cve": vuln})
 
 
-        return num_vulns_no_risk,avg_risk,vulns_found,solutions
+        return num_vulns_no_risk,risk,vulns_found,solutions
 
     #
     # save vulnerabilities processed
     #
     def save_vulnerabilities_info(self,services_found):
-        num_vulns_no_risk,avg_risk, vulns_found, solutions= self.get_tools_vulnerabilities_info(services_found)
+        num_vulns_no_risk,risk, vulns_found, solutions= self.get_tools_vulnerabilities_info(services_found)
         logging.warning(vulns_found)
         for v in vulns_found:
             #risk,type,description,location,status,machine_id,scan_id
@@ -133,14 +143,14 @@ class Report():
                     self.cur.execute(self.QUERY_VULNERABILITY,(v["risk"],'', v["desc"], v["location"],self.machine_id, self.scan_id))
                 else:
                     self.cur.execute(self.QUERY_VULNERABILITY,(0,'', v["desc"], v["location"],self.machine_id, self.scan_id))
-        
-        if avg_risk<=1 and num_vulns_no_risk<5:
+
+        if sum(risk[1:])==0 and num_vulns_no_risk<5:
             self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
-        elif avg_risk<=2 and num_vulns_no_risk<10:
+        elif sum(risk[2:])==0 and num_vulns_no_risk<10:
             self.cur.execute(self.QUERY_UPDATE_RISK,(2,self.machine_id))
-        elif avg_risk<=3 and num_vulns_no_risk<20:
+        elif sum(risk[3:])==0 and num_vulns_no_risk<20:
             self.cur.execute(self.QUERY_UPDATE_RISK,(3,self.machine_id))
-        elif avg_risk<=4 and num_vulns_no_risk<50:
+        elif risk[4]==0 and num_vulns_no_risk<50:
             self.cur.execute(self.QUERY_UPDATE_RISK,(4,self.machine_id))
         else:
             self.cur.execute(self.QUERY_UPDATE_RISK,(5,self.machine_id))
