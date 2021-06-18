@@ -2,6 +2,8 @@ import time
 from datetime import datetime, timezone
 from connections import connect_kafka_producer,connect_kafka_consumer,  connect_postgres, connect_redis
 import logging
+import random
+import string
 import json
 import re
 from report import Report
@@ -79,7 +81,7 @@ class Main():
 
         # create a new cursor
         cur = self.conn.cursor()
-        cur.execute(QUERY, (key.decode()[:12],"I","0", "NOW()"))
+        cur.execute(QUERY, (''.join(random.choice(string.ascii_lowercase ) for i in range(10)),"I","0", "NOW()"))
 
         # get the generated id back
         worker_id = cur.fetchone()[0]
