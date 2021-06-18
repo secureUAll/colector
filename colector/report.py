@@ -105,10 +105,10 @@ class Report():
             if tool['TOOL']=="zap" and "ports" in tool:
                 for p in tool["ports"]:
                     for a in p.get("alerts",[]):
-                        vulns_found.append({"risk": int(a["risk"])//2 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"])})
+                        vulns_found.append({"risk": int(a["risk"]) +1 ,"location":self.sanitize(' '.join(a["instances"])), "desc": self.sanitize(a["alert"])})
                         solutions.append((self.sanitize(a["alert"]),self.sanitize(a["solution"].replace("<p>",""))))
                         num_vulns_risk+=1
-                        avg_risk= (avg_risk*(num_vulns_risk-1) + int(a["risk"])//2)//num_vulns_risk
+                        avg_risk= (avg_risk*(num_vulns_risk-1) + (int(a["risk"])+1))//num_vulns_risk
             if tool['TOOL']=="nmap_vulscan" and "output" in tool:
                 for vuln in tool["output"]:
                     if any([s[0] in vuln and s[1] in vuln for s in services_found]):
@@ -188,7 +188,7 @@ class Report():
                     self.cur.execute(self.QUERY_MACHINE_PORT, (int(k),self.machine_id,service_id,True))
                 else:
                     self.cur.execute(self.QUERY_MACHINE_PORT, (int(k),self.machine_id,service_id,False))
-                    
+
                 self.conn.commit()  
 
                 services_found.append((service_name,service_version)) 
