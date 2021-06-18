@@ -134,13 +134,13 @@ class Report():
                 else:
                     self.cur.execute(self.QUERY_VULNERABILITY,(0,'', v["desc"], v["location"],self.machine_id, self.scan_id))
         
-        if avg_risk<=2 and num_vulns_no_risk<5:
+        if avg_risk<=1 and num_vulns_no_risk<5:
             self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
-        elif avg_risk<=4 and num_vulns_no_risk<10:
+        elif avg_risk<=2 and num_vulns_no_risk<10:
             self.cur.execute(self.QUERY_UPDATE_RISK,(2,self.machine_id))
-        elif avg_risk<=6 and num_vulns_no_risk<20:
+        elif avg_risk<=3 and num_vulns_no_risk<20:
             self.cur.execute(self.QUERY_UPDATE_RISK,(3,self.machine_id))
-        elif avg_risk<=8 and num_vulns_no_risk<50:
+        elif avg_risk<=4 and num_vulns_no_risk<50:
             self.cur.execute(self.QUERY_UPDATE_RISK,(4,self.machine_id))
         else:
             self.cur.execute(self.QUERY_UPDATE_RISK,(5,self.machine_id))
@@ -233,7 +233,8 @@ class Report():
                         if port_id not in tools_general_data:
                             tools_general_data[port_id]={"service_name":[], "service_version":[]}
                         service_name= p["name"]
-                        service_version= p["product"] if p["product"] is not None else  "" + p["version"] if p["version"] is not None else  ""
+                        service_version= p["product"] if p["product"] is not None else  "" 
+                        service_version= service_version+ p["version"] if p["version"] is not None else  service_version
                         tools_general_data[port_id]["service_name"].append(service_name)
                         tools_general_data[port_id]["service_version"].append(service_version) if service_version is not None or service_version!="" else None
                         if "os" in p and p["os"] is not None:
