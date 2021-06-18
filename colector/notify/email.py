@@ -86,7 +86,13 @@ class EmailNotify(Notify):
             return self._spacebelow()
         return self
 
-    def heading2(self, h2: str, end="\n"):
+    def heading2(self, h2: str, end="\n") -> EmailNotify:
+        self._email += f'<h4 style="padding-top: 0; padding-bottom: 0; font-weight: 500; vertical-align: baseline; font-size: 24px; line-height: 28.8px; margin: 0;" align="left">{h2},{end}</h4>'
+        if end == "\n":
+          return self._spacebelow()
+        return self
+
+    def heading3(self, h2: str, end="\n"):
         self._email += '<h5 class="text-muted" style="color: #718096; padding-top: 0; padding-bottom: 0; font-weight: 500; vertical-align: baseline; font-size: 20px; line-height: 24px; margin: 0;" align="left">{problemname}</h5>'
         if end == "\n":
             return self._spacebelow()
@@ -197,7 +203,7 @@ class EmailNotify(Notify):
         """
         if end == "\n":
             self._spacebelow()
-        pass
+        return self
 
     def _spacebelow(self) -> EmailNotify:
         self._email += """
