@@ -195,7 +195,7 @@ class Main():
 
         # parameters
         dt = datetime.now(timezone.utc)
-        log=msg.value["RESULTS"]
+        log=json.dumps(msg.value["RESULTS"])
         worker_id=int.from_bytes(msg.key,"big")
         machine_id=msg.value["MACHINE_ID"]
 
