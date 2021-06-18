@@ -53,8 +53,7 @@ class Main():
             
             # Received scan results from worker
             elif msg.topic == self.colector_topics[3]:
-                #logging.warning(msg)
-                #self.logs(msg)
+                self.logs(msg)
                 self.report(msg)
             
             # Received HeartBeat message
