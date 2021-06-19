@@ -14,6 +14,7 @@ class Report():
     QUERY_UPDATE_RISK = '''UPDATE  machines_machine SET risk=%s WHERE id=%s'''
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
     QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,created, updated,machine_id,scan_id) VALUES (%s, %s, %s, %s, \'Not Fixed\',NOW(),NOW(),%s, %s)"
+    QUERY_DELETE_MACHINE_WORKER = "DELETE FROM machines_machineworker  WHERE machine_id=%s"
 
 
     def __init__(self, conn):
@@ -103,7 +104,7 @@ class Report():
                 for vuln in tool['scan']:
                     # when nikto detects software outdated
                     if "appears to be outdated" in vuln["message"]:
-                        vulns_found.append({"risk":3,"location":self.sanitize(vuln["url"]), "type":"outdated software", "desc":self.sanitize(vuln["message"])})
+                        vulns_found.append({"risk":3,"location":self.sanitize(vuln["url"]), "type":"deprecated", "desc":self.sanitize(vuln["message"])})
                         solutions.append((self.sanitize(vuln["message"]),"Update your software!"))
                         risk[2]+=1
                     else:
@@ -263,6 +264,10 @@ class Report():
         if self.active:
             #set currents machine as inactive
             self.cur.execute(self.QUERY_UPDATE_STATUS, (self.machine_id,))
+            self.conn.commit()
+
+            #Remove machine from workers
+            self.cur.execute(self.QUERY_DELETE_MACHINE_WORKER, (self.machine_id,))
             self.conn.commit()
 
             #create new machine
