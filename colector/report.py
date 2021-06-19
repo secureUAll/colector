@@ -129,9 +129,10 @@ class Report():
             if tool['TOOL']=='sqlmap' and tool['scan']!=[]:
                 vulns=tool['scan']
                 for v in vulns:
-                    vulns_found.append({"risk":5, "location": f"Parameters: {' '.join(v[1])}", "type": "injection", "desc": f"{vuln[0]} sql injection"})
-                    solutions.append((f"{vuln[0]} sql injection","Make sure you sanitize all parameters! For more information consult: https://owasp.org/www-community/attacks/SQL_Injection"))
-                    risk[4]+= 1
+                    for url in v.keys():
+                        vulns_found.append({"risk":5, "location": f"{url}", "type": "injection", "desc": f"{', '.join(v[url].keys())} sql injection"})
+                        solutions.append((f"{', '.join(v[url].keys())} sql injection","Make sure you sanitize all parameters! For more information consult: https://owasp.org/www-community/attacks/SQL_Injection"))
+                        risk[4]+= 1
 
 
         return num_vulns_no_risk,risk,vulns_found,solutions
