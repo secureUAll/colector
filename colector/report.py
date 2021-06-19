@@ -135,7 +135,6 @@ class Report():
                             vulns_found.append({"risk":5, "location": f"{url}", "type": "injection", "desc": f"{', '.join(v[url].keys())} sql injection"})
                             solutions.append((f"{', '.join(v[url].keys())} sql injection","Make sure you sanitize all parameters! For more information consult: https://owasp.org/www-community/attacks/SQL_Injection"))
                             risk[4]+= 1
-                        else:
                             urls.append(url)
 
 
