@@ -28,7 +28,7 @@ class NotificationSender():
         user_info= cur.fetchall()
 
         if len(user_info)>0:
-            logging.info(f"User info:\n first name: {user_info[0]}\n notification type: {user_info[1]}\n notification value: {user_info[2]} ")
+            logging.info(f"User info:\n {user_info[0]}")
             logging.info(user_info)
             
             cur.execute(QUERY_MACHINE, (self.info["MACHINE_ID"],))

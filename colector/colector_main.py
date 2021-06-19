@@ -2,6 +2,8 @@ import time
 from datetime import datetime, timezone
 from connections import connect_kafka_producer,connect_kafka_consumer,  connect_postgres, connect_redis
 import logging
+import random
+import string
 import json
 import re
 from report import Report
@@ -53,8 +55,7 @@ class Main():
             
             # Received scan results from worker
             elif msg.topic == self.colector_topics[3]:
-                #logging.warning(msg)
-                #self.logs(msg)
+                self.logs(msg)
                 self.report(msg)
             
             # Received HeartBeat message
@@ -80,7 +81,7 @@ class Main():
 
         # create a new cursor
         cur = self.conn.cursor()
-        cur.execute(QUERY, ("worker","I","0", "NOW()"))
+        cur.execute(QUERY, (''.join(random.choice(string.ascii_lowercase ) for i in range(10)),"I","0", "NOW()"))
 
         # get the generated id back
         worker_id = cur.fetchone()[0]
@@ -196,7 +197,7 @@ class Main():
 
         # parameters
         dt = datetime.now(timezone.utc)
-        log=json.dumps(msg.value["RESULTS"]).encode('latin')
+        log=json.dumps(msg.value["RESULTS"])
         worker_id=int.from_bytes(msg.key,"big")
         machine_id=msg.value["MACHINE_ID"]
 
