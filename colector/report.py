@@ -75,7 +75,7 @@ class Report():
         for tool in result_scan:
             if (tool['TOOL']=="nikto" and 'status' not in tool) or (
                 tool['TOOL']=="nmap" and tool['run_stats']['host']['up']=='1') or (
-                tool['TOOL']=="vulscan" or tool['TOOL']=="zap" and  tool['state']=='up'):
+                (tool['TOOL']=="vulscan" or tool['TOOL']=="zap") and  tool['state']=='up'):
                 status="UP"
         return status
 
