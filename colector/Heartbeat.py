@@ -33,9 +33,9 @@ class Heartbeat():
         waiting_workers=json.loads(self.redis.get("waiting_workers"))
 
         workers_del=[x for x in self.workers if x not in waiting_workers]
-        logging.info("HEARTBEAT: WORKERS TO DELETE " + str(workers_del))
+        logging.info("HEARTBEAT: WORKERS TO SET DOWN " + str(workers_del))
         for w in workers_del:
-            QUERY_WORKER_DEL = '''DELETE FROM workers_worker WHERE id=%s'''
+            QUERY_WORKER_DEL = '''update workers_worker set status='D' where  id=%s'''
             cur.execute(QUERY_WORKER_DEL, (w,))
             self.postgre.commit()
         

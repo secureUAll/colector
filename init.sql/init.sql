@@ -225,7 +225,7 @@ CREATE INDEX login_user_user_permissions_user_id_2a4ce843 ON public.login_user_u
 CREATE TABLE public.machines_log (
 	cod bigserial NOT NULL,
 	"date" date NOT NULL,
-	"path" varchar(256) NOT NULL,
+	"log" TEXT NOT NULL,
 	machine_id int8 NOT NULL,
 	worker_id int8 NOT NULL,
 	CONSTRAINT machines_log_pkey PRIMARY KEY (cod),
