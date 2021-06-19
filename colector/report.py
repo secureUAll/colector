@@ -103,7 +103,7 @@ class Report():
                 for vuln in tool['scan']:
                     # when nikto detects software outdated
                     if "appears to be outdated" in vuln["message"]:
-                        vulns_found.append({"risk":3,"location":self.sanitize(vuln["url"]), "desc":self.sanitize(vuln["message"])})
+                        vulns_found.append({"risk":3,"location":self.sanitize(vuln["url"]), "type":"outdated software", "desc":self.sanitize(vuln["message"])})
                         solutions.append((self.sanitize(vuln["message"]),"Update your software!"))
                         risk[2]+=1
                     else:
@@ -139,7 +139,9 @@ class Report():
             if "cve" in v:
                 pass
             else:
-                if "risk" in v:
+                if "type" in v:
+                    self.cur.execute(self.QUERY_VULNERABILITY,(v["risk"],v["type"], v["desc"], v["location"],self.machine_id, self.scan_id))
+                elif "risk" in v:
                     self.cur.execute(self.QUERY_VULNERABILITY,(v["risk"],'', v["desc"], v["location"],self.machine_id, self.scan_id))
                 else:
                     self.cur.execute(self.QUERY_VULNERABILITY,(0,'', v["desc"], v["location"],self.machine_id, self.scan_id))
