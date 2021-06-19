@@ -1,6 +1,6 @@
 from collections import Counter
 import logging
-import logging
+import re
 
 class Report():
     QUERY_MACHINE = '''SELECT id, ip, dns FROM machines_machine WHERE id=%s'''
@@ -103,7 +103,7 @@ class Report():
                 for vuln in tool['scan']:
                     # when nikto detects software outdated
                     if "appears to be outdated" in vuln["message"]:
-                        vulns_found.append({"risk":3,"location":self.sanitize(vuln["url"]), "type":"deprecated", "desc":self.sanitize(vuln["message"])})
+                        vulns_found.append({"risk":3,"location":self.sanitize(vuln["url"]), "type":"software outdated", "desc":self.sanitize(vuln["message"])})
                         solutions.append((self.sanitize(vuln["message"]),"Update your software!"))
                         risk[2]+=1
                     else:
@@ -124,6 +124,14 @@ class Report():
                     if any([s[0] in vuln and s[1] in vuln for s in services_found]):
                         logging.warning("Added vulsacan vuln"+ vuln)
                         vulns_found.append({"cve": vuln})
+            
+            #get vulnerabilities from sql_map
+            if tool['TOOL']=='sqlmap' and tool['scan']!=[]:
+                vulns=self.process_sqlmap(tool['scan'])
+                for v in vulns:
+                    vulns_found.append({"risk":5, "location": f"Parameters: {' '.join(v[1])}", "type": "injection", "desc": f"{vuln[0]} sql injection"})
+                    solutions.append((f"{vuln[0]} sql injection","Make sure you sanitize all parameters! For more information consult: https://owasp.org/www-community/attacks/SQL_Injection"))
+                    risk[4]+= 1
 
 
         return num_vulns_no_risk,risk,vulns_found,solutions
@@ -281,3 +289,16 @@ class Report():
 
     def sanitize(self, text):
         return text.replace("'","''")
+
+    def process_sqlmap(self,text):
+        text= text.replace("\n","\t")
+        query= re.findall(r'(?:Parameter:)(.*?)\(.*?\)(.*?)(---)',text)
+
+        d =dict()
+        for p in query:
+            for r in re.findall(r'(?:Type\:)(.*?)\t',p[1]):
+                if r in d:
+                    d[r].add(p[0])
+                else:
+                    d[r]={p[0]}
+        return d
