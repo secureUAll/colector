@@ -127,7 +127,7 @@ class Report():
             
             #get vulnerabilities from sql_map
             if tool['TOOL']=='sqlmap' and tool['scan']!=[]:
-                vulns=self.process_sqlmap(tool['scan'])
+                vulns=tool['scan']
                 for v in vulns:
                     vulns_found.append({"risk":5, "location": f"Parameters: {' '.join(v[1])}", "type": "injection", "desc": f"{vuln[0]} sql injection"})
                     solutions.append((f"{vuln[0]} sql injection","Make sure you sanitize all parameters! For more information consult: https://owasp.org/www-community/attacks/SQL_Injection"))
@@ -290,15 +290,4 @@ class Report():
     def sanitize(self, text):
         return text.replace("'","''")
 
-    def process_sqlmap(self,text):
-        text= text.replace("\n","\t")
-        query= re.findall(r'(?:Parameter:)(.*?)\(.*?\)(.*?)(---)',text)
-
-        d =dict()
-        for p in query:
-            for r in re.findall(r'(?:Type\:)(.*?)\t',p[1]):
-                if r in d:
-                    d[r].add(p[0])
-                else:
-                    d[r]={p[0]}
-        return d
+    
