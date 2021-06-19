@@ -140,13 +140,13 @@ class Report():
 
             #get cerficate errors
             if tool['TOOL']=='certigo' and 'tls' in tool:
-                if 'verification'  in tool['tls'] and 'error' in tool['tls']['verification']:
-                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool['tls']["verification"]["error"], "location": ""})
+                if 'verification'  in tool and 'error' in tool['verification']:
+                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["error"], "location": ""})
                     solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
                     risk[2]+=1
-                elif 'verification' in tool['tls'] and 'ocsp_error' in tool['tls']['verification']:
-                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool['tls']["verification"]["ocsp_error"], "location": ""})
-                    solutions.append((tool['tls']["verification"]["error"], "Verify if your certificates are valid! "))
+                elif 'verification' in tool and 'ocsp_error' in tool['verification']:
+                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["ocsp_error"], "location": ""})
+                    solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
                     risk[2]+=1
             
 
