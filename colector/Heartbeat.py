@@ -17,8 +17,8 @@ class Heartbeat():
 
         cur.execute(QUERY_WORKER, ())
 
-        workers_db= cur.fetchall()
-        self.workers=[x[0] for x in workers_db]
+        self.workers_db= cur.fetchall()
+        self.workers=[x[0] for x in self.workers_db]
         logging.info("HEARTBEAT: WORKERS ON BD " + str(self.workers))
     
     def broadcast(self):
@@ -33,7 +33,7 @@ class Heartbeat():
         waiting_workers=json.loads(self.redis.get("waiting_workers"))
 
         workers_del=[x for x in self.workers if x not in waiting_workers]
-        workers_update=[x for x in self.workers if x[1]=="D" and x in waiting_workers]
+        workers_update=[x[0] for x in self.workers_db if x[1]=="D" and x[0] in waiting_workers]
 
         logging.info("HEARTBEAT: WORKERS TO SET DOWN " + str(workers_del))
         for w in workers_del:
