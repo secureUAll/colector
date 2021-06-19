@@ -21,7 +21,7 @@ app.config_from_object('celeryconfig')
     
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    #sender.add_periodic_task(300, heartbeat.s())
+    sender.add_periodic_task(10, heartbeat.s())
     sender.add_periodic_task(60, scan.s())
 
 @app.task()

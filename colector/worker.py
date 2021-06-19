@@ -5,7 +5,7 @@ import os
 import json
 import logging
 import time
-
+import thread
 import subprocess
 import argparse
 import json
@@ -21,7 +21,33 @@ def convert_to_json(output_file):
     #write_file.write(json.dumps(xmltodict.parse(xml_content), indent=4, sort_keys=True))
     return json.dumps(xmltodict.parse(xml_content), indent=4, sort_keys=True)
 
+def scan_request(message):
+    logging.warning("RECEBI UM REQUEST")
+    logging.warning(int.from_bytes(message.key,"big"))
+    logging.warning(WORKER_ID)
+    if int.from_bytes(message.key,"big") == WORKER_ID:
+        logging.warning(message.value)
+        # get machine to scan
+        machine = message.value["MACHINE"]
 
+        # default scrapping value
+        if message.value["SCRAP_LEVEL"] == '2':
+            # pull image from registry
+            os.system("docker pull localhost/vulscan:latest")
+            # runn image
+            os.system("docker  run --user \"$(id -u):$(id -g)\" -v `pwd`:`pwd` -w `pwd` -i -t localhost/vulscan:latest -sV --script=vulscan/vulscan.nse " + machine + " -oX out.xml")
+
+            #output_json = convert_to_json("out.xml")
+            output_json="{}"
+
+        elif message.value["SCRAP_LEVEL"] == '3':
+            pass
+        elif message.value["SCRAP_LEVEL"] == '4':
+            pass
+        
+        logging.warning("vai mandar")
+        producer.send(colector_topics[2], key=bytes(WORKER_ID), value=output_json)
+        producer.flush()
 
 #time.sleep(30)
 time.sleep(22)
@@ -97,32 +123,8 @@ for message in consumer:
             WORKER_ID = message.value['WORKER_ID']
 
     elif message.topic== colector_topics[1]:
-        logging.warning("RECEBI UM REQUEST")
-        logging.warning(int.from_bytes(message.key,"big"))
-        logging.warning(WORKER_ID)
-        if int.from_bytes(message.key,"big") == WORKER_ID:
-            logging.warning(message.value)
-            # get machine to scan
-            machine = message.value["MACHINE"]
-
-            # default scrapping value
-            if message.value["SCRAP_LEVEL"] == '2':
-                # pull image from registry
-                os.system("docker pull localhost/vulscan:latest")
-                # runn image
-                os.system("docker  run --user \"$(id -u):$(id -g)\" -v `pwd`:`pwd` -w `pwd` -i -t localhost/vulscan:latest -sV --script=vulscan/vulscan.nse " + machine + " -oX out.xml")
-
-                #output_json = convert_to_json("out.xml")
-                output_json="{}"
-
-            elif message.value["SCRAP_LEVEL"] == '3':
-                continue
-            elif message.value["SCRAP_LEVEL"] == '4':
-                continue
-            
-            logging.warning("vai mandar")
-            producer.send(colector_topics[2], key=bytes(WORKER_ID), value=output_json)
-            producer.flush()
+        thread.start_new_thread(scan_request, (message,))
+        #scan_request(message)
     elif message.topic=="HEARTBEAT":
         if message.value["from"]=="colector":
             print("VAI ENVIAAAR" + str({'from':WORKER_ID, 'to':"colector"}))
