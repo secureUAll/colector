@@ -138,6 +138,17 @@ class Report():
                             risk[4]+= 1
                             urls.append(url)
 
+            #get cerficate errors
+            if tool['TOOL']=='certigo' and 'tls' in tool:
+                if 'verification'  in tool['tls'] and 'error' in tool['tls']['verification']:
+                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool['tls']["verification"]["error"], "location": ""})
+                    solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
+                    risk[2]+=1
+                elif 'verification' in tool['tls'] and 'ocsp_error' in tool['tls']['verification']:
+                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool['tls']["verification"]["ocsp_error"], "location": ""})
+                    solutions.append((tool['tls']["verification"]["error"], "Verify if your certificates are valid! "))
+                    risk[2]+=1
+            
 
         return num_vulns_no_risk,risk,vulns_found,solutions
 
