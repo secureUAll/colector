@@ -12,6 +12,7 @@ class Report():
     QUERY_UPDATE_OS = '''UPDATE machines_machine SET os=%s WHERE id=%s'''
     QUERY_UPDATE_STATUS = '''UPDATE machines_machine SET active=%s WHERE id=%s'''
     QUERY_UPDATE_RISK = '''UPDATE  machines_machine SET risk=%s WHERE id=%s'''
+    QUERY_UPDATE_CERTIFICATE = '''UPDATE machines_machine SET \"sslVersion\"=%s, \"sllAlgorithm\"=%s, \"sslExpired\"=%s, \"sslInvalid\"=%s WHERE id=%s''' 
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
     QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,created, updated,machine_id,scan_id) VALUES (%s, %s, %s, %s, \'Not Fixed\',NOW(),NOW(),%s, %s)"
     QUERY_DELETE_MACHINE_WORKER = "DELETE FROM machines_machineworker  WHERE machine_id=%s"
@@ -138,16 +139,41 @@ class Report():
                             risk[4]+= 1
                             urls.append(url)
 
-            #get cerficate errors
-            if tool['TOOL']=='certigo' and 'tls' in tool:
+            #get cerficate errors and update certificate info
+            if tool['TOOL']=='certigo':
                 if 'verification'  in tool and 'error' in tool['verification']:
                     vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["error"], "location": ""})
                     solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
                     risk[2]+=1
+                    bad_cert=False
                 elif 'verification' in tool and 'ocsp_error' in tool['verification']:
                     vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["ocsp_error"], "location": ""})
                     solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
                     risk[2]+=1
+                    bad_cert=False
+                else:
+                    bad_cert=True
+
+                if 'scan' in tool:
+
+                    valid_until='NULL'
+                    algorithm = 'NULL'
+                    tls = 'NULL'
+
+                    if 'valid_after'  in tool['scan']:
+                        valid_until = tool['scan']['valid_after'].split('T')
+                        valid_until = valid_until[0]
+
+                    if 'algorithm' in  tool['scan']:
+                        algorithm= tool['scan']['algorithm']
+
+                    if 'tls' in  tool['scan'] and 'version' in tool['scan']['tls']:
+                        tls= tool['scan']['tls']['version']
+                    
+
+                    self.cur.execute(self.QUERY_UPDATE_CERTIFICATE,(tls,algorithm,valid_until,bad_cert, self.machine_id,) )
+
+                    self.conn.commit()
             
 
         return num_vulns_no_risk,risk,vulns_found,solutions
@@ -276,6 +302,8 @@ class Report():
                         if "os" in p and p["os"] is not None:
                             tools_general_data["os"].append(p["os"])
                         logging.warning("port id: " + str(port_id) + " service name: " + str(service_name) + " service version: " + str(service_version) )
+                
+            #TODO Nikto information about open port
         
         return tools_general_data
 
