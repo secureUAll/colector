@@ -225,7 +225,8 @@ class Report():
         if self.machine_risk is None or  risk != self.machine_risk:
             self.cur.execute(self.QUERY_UPDATE_RISK,(risk,self.machine_id))
             self.cur.execute(self.QUERY_MACHINE_CHANGE, ('R',self.machine_id))
-            self.conn.commit()
+            
+        self.conn.commit()
         
         total_nvulns= num_vulns_no_risk + len(vulns_found)
         return total_nvulns, solutions
