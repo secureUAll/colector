@@ -224,8 +224,8 @@ class Report():
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
         
         if os is not None and (self.machine_os is None and os!=self.machine_os):
-            self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
             self.cur.exeute(self.QUERY_MACHINE_CHANGE('O',self.machine_id))
+        self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
         self.conn.commit()
 
         services_found=[]

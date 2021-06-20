@@ -77,7 +77,7 @@ def scan():
                 logging.info(f"Sending Worker {str(worker[0])} a scanning request of host with dns {machine[2]}")
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0],"MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else:
-                logging.info(f"Sending Worker {str(worker[0])} a scanning request of host with dns {machine[1]}") 
+                logging.info(f"Sending Worker {str(worker[0])} a scanning request of host with ip {machine[1]}") 
                 producer.send(colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0],"MACHINE":machine[1],"SCRAP_LEVEL":machine[3]})
 
     producer.flush()
