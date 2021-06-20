@@ -99,6 +99,7 @@ class Report():
     def get_updatable_info(self):
         self.cur.execute(self.QUERY_MACHINE,(self.machine_id,))
         machine_info= self.cur.fetchone()
+        logging.info(f'Machine info: {machine_info}')
         return machine_info[0], machine_info[1], machine_info[2], machine_info[3]
 
     #
