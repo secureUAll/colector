@@ -192,6 +192,7 @@ class Main():
     #
     def logs(self,msg):
         logging.warning("ENTROU NOS LOGS")
+        logging.info(f'LOG: {msg}')
         QUERY = '''INSERT INTO machines_log (date, log, machine_id, worker_id) VALUES(%s, %s,%s , %s)'''
         cur = self.conn.cursor()
 
