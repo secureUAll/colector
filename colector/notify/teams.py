@@ -63,7 +63,7 @@ class TeamsNotify(Notify):
 
     def card(self, title: str, content: list, end="\n") -> TeamsNotify:
         # Content is list of objects like {name: str, value: str}
-        self._msg.append({
+        self._msg['sections'].append({
             "startGroup": True,
             "title": f"**{title}**",
             "facts": [
