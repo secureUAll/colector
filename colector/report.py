@@ -75,7 +75,8 @@ class Report():
         for tool in result_scan:
             if (tool['TOOL']=="nikto" and 'status' not in tool) or (
                 tool['TOOL']=="nmap" and tool['run_stats']['host']['up']=='1') or (
-                (tool['TOOL']=="vulscan" or tool['TOOL']=="zap") and  tool['state']=='up'):
+                (tool['TOOL']=="vulscan" or tool['TOOL']=="zap") and  tool['state']=='up') or (
+                tool['TOOL']=="certigo" and tool['state']!="timed out"):
                 status="UP"
         return status
 
@@ -137,6 +138,17 @@ class Report():
                             risk[4]+= 1
                             urls.append(url)
 
+            #get cerficate errors
+            if tool['TOOL']=='certigo' and 'tls' in tool:
+                if 'verification'  in tool and 'error' in tool['verification']:
+                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["error"], "location": ""})
+                    solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
+                    risk[2]+=1
+                elif 'verification' in tool and 'ocsp_error' in tool['verification']:
+                    vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["ocsp_error"], "location": ""})
+                    solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
+                    risk[2]+=1
+            
 
         return num_vulns_no_risk,risk,vulns_found,solutions
 
