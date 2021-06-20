@@ -133,7 +133,7 @@ class Main():
         logging.info(f"Sending scan request of host {machine[1] if machine[1]!='' else machine[2]}")
 
         #get workers associated with the host
-        QUERY_WORKER = '''SELECT mw.worker_id FROM machines_machineworker mw, workers_worker ww  WHERE machine_id= %s and  ww.id=mw.worker_id and ww.status<>"D"'''
+        QUERY_WORKER = "SELECT mw.worker_id FROM machines_machineworker mw, workers_worker ww  WHERE machine_id= %s and  ww.id=mw.worker_id and ww.status<>'D'"
         
         #update host next scan
         if machine[4] == 'D':

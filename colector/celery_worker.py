@@ -52,7 +52,7 @@ def scan():
     for machine in machines:
 
         #get workers associated with the host
-        QUERY_WORKER = '''SELECT mw.worker_id FROM machines_machineworker mw, workers_worker ww  WHERE machine_id= %s and  ww.id=mw.worker_id and ww.status<>"D"'''
+        QUERY_WORKER = "SELECT mw.worker_id FROM machines_machineworker mw, workers_worker ww  WHERE machine_id= %s and  ww.id=mw.worker_id and ww.status<>'D'"
         QUERY_WORKER_UPDATE = '''UPDATE workers_worker SET status=\'A\' WHERE id= %s'''
         
         #update host next scan
