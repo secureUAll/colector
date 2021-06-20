@@ -17,6 +17,7 @@ class Report():
     QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,created, updated,machine_id,scan_id) VALUES (%s, %s, %s, %s, \'Not Fixed\',NOW(),NOW(),%s, %s)"
     QUERY_DELETE_MACHINE_WORKER = "DELETE FROM machines_machineworker  WHERE machine_id=%s"
     QUERY_MACHINE_CHANGE = "INSERT INTO machines_machinechanges(type,created,updated,machine_id) VALUES (%s,NOW(),NOW(), %s)"
+    QUERY_DELETE_MACHINE_PORTS = '''DELETE from machines_machineport where machine_id=%s'''
 
 
     def __init__(self, conn):
@@ -171,9 +172,9 @@ class Report():
 
                 if 'scan' in tool:
 
-                    valid_until='NULL'
-                    algorithm = 'NULL'
-                    tls = 'NULL'
+                    valid_until=None
+                    algorithm =None
+                    tls = None
 
                     if 'valid_after'  in tool['scan']:
                         valid_until = tool['scan']['valid_after'].split('T')
