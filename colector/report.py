@@ -3,7 +3,7 @@ import logging
 import re
 
 class Report():
-    QUERY_MACHINE = '''SELECT id, ip, dns FROM machines_machine WHERE id=%s'''
+    QUERY_MACHINE = '''SELECT id, ip, dns, os, risk FROM machines_machine WHERE id=%s'''
     QUERY_MACHINE_ACTIVE = '''SELECT active FROM machines_machine WHERE id=%s'''
     QUERY_MACHINE_PORT= '''INSERT INTO machines_machineport(port,machine_id,service_id,\"scanEnabled\", vulnerable) VALUES (%s,%s,%s,true, %s) ON CONFLICT  DO NOTHING'''
     QUERY_MACHINE_SERVICE='''INSERT INTO machines_machineservice(service,version) VALUES (%s,%s) ON CONFLICT (service,version) DO UPDATE SET SERVICE=EXCLUDED.service RETURNING id'''
@@ -16,6 +16,7 @@ class Report():
     QUERY_SAVE_SCAN= "INSERT INTO machines_scan(date, status, machine_id, worker_id)   VALUES(NOW(),%s,%s,%s) RETURNING id"
     QUERY_VULNERABILITY = "INSERT INTO machines_vulnerability(risk,type,description,location,status,created, updated,machine_id,scan_id) VALUES (%s, %s, %s, %s, \'Not Fixed\',NOW(),NOW(),%s, %s)"
     QUERY_DELETE_MACHINE_WORKER = "DELETE FROM machines_machineworker  WHERE machine_id=%s"
+    QUERY_MACHINE_CHANGE = "INSERT INTO machines_machinechanges(type,created,updated,machine_id) VALUES (%s,NOW(),NOW(), %s)"
 
 
     def __init__(self, conn):
@@ -24,6 +25,10 @@ class Report():
         self.msg=None
         self.scan_id=None
         self.machine_id=None
+        self.machine_ip=None
+        self.machine_dns=None
+        self.machine_os=None
+        self.machine_risk=None
         self.active=None
 
 
@@ -38,6 +43,7 @@ class Report():
         #if scan was successfull retrive solutions
         if success_scan:
             logging.info("Scan was sucessfull")
+            self.machine_ip,self.machine_dns,self.machine_os, self.machine_risk= self.get_updatable_info()
             services_found=self.save_general_info()
             nvulns, solutions =self.save_vulnerabilities_info(services_found)
             self.cur.close()
@@ -87,6 +93,15 @@ class Report():
     def check_machine_active(self):
         self.cur.execute(self.QUERY_MACHINE_ACTIVE, (self.machine_id,))
         self.active= self.cur.fetchone()[0]
+
+    #
+    # check host updatable info such as os and risk
+    #
+    def get_updatable_info(self):
+        self.cur.execute(self.QUERY_MACHINE,(self.machine_id,))
+        machine_info= self.cur.fetchone()
+        logging.info(f'Machine info: {machine_info}')
+        return machine_info[0], machine_info[1], machine_info[2], machine_info[3]
 
     #
     # process vulnerabilities found by the tools
@@ -197,16 +212,19 @@ class Report():
                     self.cur.execute(self.QUERY_VULNERABILITY,(0,'', v["desc"], v["location"],self.machine_id, self.scan_id))
 
         if sum(risk[1:])==0 and num_vulns_no_risk<5:
-            self.cur.execute(self.QUERY_UPDATE_RISK,(1,self.machine_id))
+            risk=1
         elif sum(risk[2:])==0 and num_vulns_no_risk<10:
-            self.cur.execute(self.QUERY_UPDATE_RISK,(2,self.machine_id))
+            risk=2
         elif sum(risk[3:])==0 and num_vulns_no_risk<20:
-            self.cur.execute(self.QUERY_UPDATE_RISK,(3,self.machine_id))
+            risk=3
         elif risk[4]==0 and num_vulns_no_risk<50:
-            self.cur.execute(self.QUERY_UPDATE_RISK,(4,self.machine_id))
+            risk=4
         else:
-            self.cur.execute(self.QUERY_UPDATE_RISK,(5,self.machine_id))
-        self.conn.commit()
+            risk=5
+        if self.machine_risk is None or  risk != self.machine_risk:
+            self.cur.execute(self.QUERY_UPDATE_RISK,(risk,self.machine_id))
+            self.cur.execute(self.QUERY_MACHINE_CHANGE, ('R',self.machine_id))
+            self.conn.commit()
         
         total_nvulns= num_vulns_no_risk + len(vulns_found)
         return total_nvulns, solutions
@@ -223,17 +241,17 @@ class Report():
         os=Counter(tools_general_data["os"]).most_common(1)[0][0] if len(tools_general_data["os"]) > 0 else None
         
         if address_ip is not None and address_dns is not None:
-            
+
             #See if machine is new          
-            self.cur.execute(self.QUERY_MACHINE,(self.machine_id,))
-            machine_info= self.cur.fetchone()
-            if address_dns!= machine_info[2]:
+            if address_dns!= self.machine_dns and self.machine_dns!='' and self.machine_dns is not None and address_dns!='':
+                logging.info(f'updating machine with new dns {self.machine_dns}')
                 self.update_machine(address_ip,address_dns)
             else:
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
         
-        if os is not None:
-            self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
+        if os is not None and (self.machine_os is None and os!=self.machine_os):
+            self.cur.exeute(self.QUERY_MACHINE_CHANGE('O',self.machine_id))
+        self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
         self.conn.commit()
 
         services_found=[]
@@ -269,10 +287,11 @@ class Report():
 
             # there is information about the host address
             if 'address' in tool:
-                logging.warning("adding ip: " + str(tool["address"]["address_ip"]) + "adding dns: " + str(tool["address"]["address_name"]) )
-                if tool["address"]["address_ip"] is not None:
+                if "address_ip" in tool["address"] and tool["address"]["address_ip"] is not None:
+                    logging.warning("adding ip:"+str(tool["address"]["address_ip"]))
                     tools_general_data["address_ip"].append(tool["address"]["address_ip"])
-                if tool["address"]["address_name"] is not None:
+                if "address_name" in tool["address"] and tool["address"]["address_name"] is not None:
+                    logging.warning("adding dns:"+str(tool["address"]["address_name"]))
                     tools_general_data["address_name"].append(tool["address"]["address_name"])
 
             # there is information about the host ports
@@ -314,7 +333,7 @@ class Report():
 
         if self.active:
             #set currents machine as inactive
-            self.cur.execute(self.QUERY_UPDATE_STATUS, (self.machine_id,))
+            self.cur.execute(self.QUERY_UPDATE_STATUS, (False, self.machine_id,))
             self.conn.commit()
 
             #Remove machine from workers
