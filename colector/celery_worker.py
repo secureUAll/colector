@@ -55,20 +55,24 @@ def scan():
         QUERY_WORKER = "SELECT mw.worker_id FROM machines_machineworker mw, workers_worker ww  WHERE machine_id= %s and  ww.id=mw.worker_id and ww.status<>'D'"
         QUERY_WORKER_UPDATE = '''UPDATE workers_worker SET status=\'A\' WHERE id= %s'''
         
-        #update host next scan
-        if machine[4] == 'D':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
-            
-        elif machine[4]=='M':
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\"= NOW() + interval \'1 month\'  WHERE id= %s'''
-        else:
-            QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
-        cur.execute(QUERY_MACHINE, (machine[0],))
-
         conn.commit()
         cur.execute(QUERY_WORKER, (machine[0],))
 
         workers= cur.fetchall()
+
+        if len(workers)>0:
+            logging.info(f"UPDATING MACHINE {machine[0]} NEXT SCAN DATE")
+            #update host next scan
+            if machine[4] == 'D':
+                QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'1 day\'  WHERE id= %s'''
+                
+            elif machine[4]=='M':
+                QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\"= NOW() + interval \'1 month\'  WHERE id= %s'''
+            else:
+                QUERY_MACHINE = '''UPDATE  machines_machine SET \"nextScan\" = NOW() + interval \'7 days\'  WHERE id= %s'''
+            cur.execute(QUERY_MACHINE, (machine[0],))
+
+        
         for worker in workers:
 
             cur.execute(QUERY_WORKER_UPDATE, (worker[0],))
