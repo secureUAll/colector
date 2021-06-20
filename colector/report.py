@@ -176,15 +176,15 @@ class Report():
                     algorithm =None
                     tls = None
 
-                    if 'valid_after'  in tool['scan'][0]:
-                        valid_until = tool['scan'][0]['valid_after'].split('T')
+                    if 'valid_until'  in tool['scan'][0]:
+                        valid_until = tool['scan'][0]['valid_until'].split('T')
                         valid_until = valid_until[0]
 
                     if 'algorithm' in  tool['scan'][0]:
                         algorithm= tool['scan'][0]['algorithm']
 
-                    if 'tls' in  tool['scan'][0] and 'version' in tool['scan'][0]['tls']:
-                        tls= tool['scan'][0]['tls']['version']
+                    if 'tls' in  tool and 'version' in tool['tls']:
+                        tls= tool['tls']['version']
                     
 
                     self.cur.execute(self.QUERY_UPDATE_CERTIFICATE,(tls,algorithm,valid_until,bad_cert, self.machine_id) )
