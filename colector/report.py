@@ -161,14 +161,14 @@ class Report():
                     vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["error"], "location": ""})
                     solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
                     risk[2]+=1
-                    bad_cert=False
+                    bad_cert=True
                 elif 'verification' in tool and 'ocsp_error' in tool['verification']:
                     vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["ocsp_error"], "location": ""})
                     solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
                     risk[2]+=1
-                    bad_cert=False
-                else:
                     bad_cert=True
+                else:
+                    bad_cert=False
 
                 if 'scan' in tool:
 
@@ -327,8 +327,13 @@ class Report():
                         if "os" in p and p["os"] is not None:
                             tools_general_data["os"].append(p["os"])
                         logging.warning("port id: " + str(port_id) + " service name: " + str(service_name) + " service version: " + str(service_version) )
-                
-            #TODO Nikto information about open port
+            
+            #nikto detects banners on port 80
+            if tool["TOOL"]=="nikto" and 'banner' in tool: 
+                if "80" not in tools_general_data:
+                    tools_general_data["80"]={"service_name":[], "service_version":[]}
+                tools_general_data["80"]["service_name"].append("http")
+                tools_general_data["80"]["service_version"].append(tool['banner'])
         
         return tools_general_data
 
