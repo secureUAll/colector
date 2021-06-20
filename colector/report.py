@@ -216,7 +216,8 @@ class Report():
         if address_ip is not None and address_dns is not None:
 
             #See if machine is new          
-            if address_dns!= self.machine_dns and self.machine_dns!='' and self.machine_dns is not None:
+            if address_dns!= self.machine_dns and self.machine_dns!='' and self.machine_dns is not None and address_dns!='':
+                logging.info(f'updating machine with new dns {self.machine_dns}')
                 self.update_machine(address_ip,address_dns)
             else:
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
@@ -303,7 +304,7 @@ class Report():
 
         if self.active:
             #set currents machine as inactive
-            self.cur.execute(self.QUERY_UPDATE_STATUS, (self.machine_id,))
+            self.cur.execute(self.QUERY_UPDATE_STATUS, (False, self.machine_id,))
             self.conn.commit()
 
             #Remove machine from workers
