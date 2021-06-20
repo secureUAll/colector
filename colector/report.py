@@ -250,10 +250,15 @@ class Report():
             else:
                 self.cur.execute(self.QUERY_UPDATE_ADDRESS,(address_ip,address_dns,self.machine_id))
         
+        # Save/update OS
         if os is not None and (self.machine_os is None and os!=self.machine_os):
             self.cur.exeute(self.QUERY_MACHINE_CHANGE('O',self.machine_id))
         self.cur.execute(self.QUERY_UPDATE_OS,(os,self.machine_id))
         self.conn.commit()
+
+        #Replace previous scanned doors with new ones
+        self.cur.execute(self.QUERY_DELETE_MACHINE_PORTS, (self.machine_id,))
+
 
         services_found=[]
         for k in tools_general_data.keys():
