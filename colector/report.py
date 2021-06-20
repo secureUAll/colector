@@ -259,10 +259,10 @@ class Report():
 
             # there is information about the host address
             if 'address' in tool:
-                if tool["address"]["address_ip"] is not None:
+                if "address_ip" in tool["address"] and tool["address"]["address_ip"] is not None:
                     logging.warning("adding ip:"+str(tool["address"]["address_ip"]))
                     tools_general_data["address_ip"].append(tool["address"]["address_ip"])
-                if tool["address"]["address_name"] is not None:
+                if "address_name" in tool["address"] and tool["address"]["address_name"] is not None:
                     logging.warning("adding dns:"+str(tool["address"]["address_name"]))
                     tools_general_data["address_name"].append(tool["address"]["address_name"])
 
