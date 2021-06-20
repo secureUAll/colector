@@ -187,7 +187,7 @@ class Report():
                         tls= tool['scan']['tls']['version']
                     
 
-                    self.cur.execute(self.QUERY_UPDATE_CERTIFICATE,(tls,algorithm,valid_until,bad_cert, self.machine_id,) )
+                    self.cur.execute(self.QUERY_UPDATE_CERTIFICATE,(tls,algorithm,valid_until,bad_cert, self.machine_id) )
 
                     self.conn.commit()
             
