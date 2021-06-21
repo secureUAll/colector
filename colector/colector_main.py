@@ -150,7 +150,7 @@ class Main():
 
         workers= cur.fetchall()
         for worker in workers:
-            if machine[1] == '':
+            if machine[1] == '' or machine[1]==None:
                 logging.info(f"Sending Worker {str(worker[0])} a scanning request of host with dns {machine[2]}")
                 self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0], "MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else:
