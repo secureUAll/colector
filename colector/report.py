@@ -342,7 +342,7 @@ class Report():
     # If a new host was found while scanning update
     #
     def update_machine(self, address_ip, address_dns):
-
+        """
         if self.active:
             #set currents machine as inactive
             self.cur.execute(self.QUERY_UPDATE_STATUS, (False, self.machine_id,))
@@ -361,6 +361,7 @@ class Report():
         self.cur.execute(self.QUERY_SAVE_SCAN,("UP",self.machine_id ,int.from_bytes(self.msg.key,"big")))
         self.scan_id= self.cur.fetchone()[0]
         self.conn.commit()
+        """
 
     def sanitize(self, text):
         return text.replace("'","''")
