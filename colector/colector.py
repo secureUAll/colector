@@ -3,7 +3,7 @@ import celery_worker
 import logging
 import time
 
-time.sleep(20)
+
 logging.basicConfig(level=logging.DEBUG)
 
 #https://www.postgresqltutorial.com/postgresql-python
@@ -24,6 +24,7 @@ def start_celery():
     
 
 if __name__ == "__main__":
+    time.sleep(20)
     start_celery()
     
 

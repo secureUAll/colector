@@ -36,8 +36,10 @@ services:
       - 'redis_data:/bitnami/redis/data'
 
   kafka:
-    image: wurstmeister/kafka
     container_name: kafka
+    build:
+      context: .
+      dockerfile: kafka.Dockerfile
     hostname: kafka
     ports:
       - 29092:29092
