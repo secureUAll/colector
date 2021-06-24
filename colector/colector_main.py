@@ -103,7 +103,7 @@ class Main():
             if machine_id is None:
                 logging.info(f"Adding machine {machine} to database")
 
-                QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\", active, created, updated) VALUES(%s,%s,'4','W',NOW(), true, NOW(), NOW() ) RETURNING id'''
+                QUERY = '''INSERT INTO machines_machine(ip,dns, \"scanLevel\", periodicity, \"nextScan\", active, created, updated) VALUES(%s,%s,'2','W',NOW(), true, NOW(), NOW() ) RETURNING id'''
                 if re.fullmatch("(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}",machine):
                     cur.execute(QUERY, (machine,''))
                 else:
@@ -133,7 +133,7 @@ class Main():
         logging.info(f"Sending scan request of host {machine[1] if machine[1]!='' else machine[2]}")
 
         #get workers associated with the host
-        QUERY_WORKER = '''SELECT worker_id FROM machines_machineworker WHERE machine_id= %s'''
+        QUERY_WORKER = "SELECT mw.worker_id FROM machines_machineworker mw, workers_worker ww  WHERE machine_id= %s and  ww.id=mw.worker_id and ww.status<>'D'"
         
         #update host next scan
         if machine[4] == 'D':
@@ -150,7 +150,7 @@ class Main():
 
         workers= cur.fetchall()
         for worker in workers:
-            if machine[1] == '':
+            if machine[1] == '' or machine[1] is None:
                 logging.info(f"Sending Worker {str(worker[0])} a scanning request of host with dns {machine[2]}")
                 self.producer.send(self.colector_topics[1],key=bytes([worker[0]]), value={"MACHINE_ID": machine[0], "MACHINE":machine[2],"SCRAP_LEVEL":machine[3]})
             else:
