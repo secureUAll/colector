@@ -164,7 +164,7 @@ class Report():
                     bad_cert=True
                 elif 'verification' in tool and 'ocsp_error' in tool['verification']:
                     vulns_found.append({"risk": 3, "type": "certificate", "desc":tool["verification"]["ocsp_error"], "location": ""})
-                    solutions.append((tool["verification"]["error"], "Verify if your certificates are valid! "))
+                    solutions.append((tool["verification"]["ocsp_error"], "Verify if your certificates are valid! "))
                     risk[2]+=1
                     bad_cert=True
                 else:
